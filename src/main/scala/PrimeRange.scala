@@ -50,12 +50,11 @@ sealed case class PrimeRange(start: Int, end: Int) {
     for (n <- alignedRange.start to alignedRange.end by prime if !isMultipleOf2357(n)) yield n
   }
 
-  def countPrimes(primes: Iterable[Int]): Int = (
-    this.capacity
-      - this.multiplesOf2357
-      - primes.flatMap(NonPrimesAndNotMultiplesOf2357).toSet.size
-    )
+  lazy val partialResult = this.capacity - this.multiplesOf2357
+
+  def countPrimes(primes: Iterable[Int]): Int = {
+      this.partialResult - primes.flatMap(NonPrimesAndNotMultiplesOf2357).toSet.size
+  }
 
   override def toString: String = s"[$start, $end]"
 }
-

@@ -66,8 +66,8 @@ sealed case class PrimesCouple(primesCouple: (Int, Int)) {
   val p1: Int = primesCouple._1
   val p2: Int = primesCouple._2
   val asTuple: (Int, Int) = (p1, p2)
+  val range: PrimeRange = PrimeRange(p1 * p1, p2 * p2)
 
-  var range: PrimeRange = PrimeRange(p1 * p1, p2 * p2)
   var primaryDivisorsFrom11: Iterable[Int] = Nil
   var useCache = true
 
@@ -81,13 +81,13 @@ sealed case class PrimesCouple(primesCouple: (Int, Int)) {
     this
   }
 
-  def countPrimes(end: Int): Int = {
+  def countPrimes(): Int = {
     if (this.useCache) {
       val memoizedValue = getFromCache(this)
       if (memoizedValue != NotMemoizedYet) memoizedValue
-      else updateCache(this, range.countPrimes(primaryDivisorsFrom11))
+      else updateCache(this, this.range.countPrimes(primaryDivisorsFrom11))
     }
-    else range.countPrimes(primaryDivisorsFrom11)
+    else this.range.countPrimes(primaryDivisorsFrom11)
   }
 
   override def toString: String = this.asTuple.toString()
