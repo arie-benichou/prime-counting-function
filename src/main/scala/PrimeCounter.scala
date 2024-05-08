@@ -1,98 +1,168 @@
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.CollectionConverters._
+import scala.collection.mutable
 
-object PrimeCounter {
+case object PrimeCounter {
 
-  var isCacheLoaded = false
+  private val Singularities = Seq(
+    (PrimeCouple(1, 2), 2),
+    (PrimeCouple(2, 3), 2))
 
-  def apply(
-      end: Int,
-      useCache: Boolean = true,
-      useParallelism: Boolean = true,
-      saveCache: Boolean = false
-  ): Int = {
+  private val cache = new CacheManager(
+    "data-new3.json",
+    -1,
+    Singularities.map(s => (s._1.asTuple, s._2)): _*)
+
+  def updateCache(primeCouple: PrimeCouple, n: Int) = {
+    cache.update(primeCouple.asTuple, n)
+  }
+
+  // TODO rename to unloadCache !!
+  def clearCache() = {
+    cache.clear()
+    for ((pc, n) <- Singularities) updateCache(pc, n)
+  }
+
+  def regenerateCache() = {
+    clearCache()
+    //println(PrimeCounter(Int.MaxValue))
+    println(PrimeCounter(100))
+    saveCache()
+  }
+
+  def loadCache(): Int = cache.load()
+
+  def saveCache() = cache.save()
+
+  def cache(primeCouple: PrimeCouple): Int = cache(primeCouple.asTuple)
+
+  def isMultipleOf2357(n: Int): Boolean = {
+    for (p <- List(2, 3, 5, 7)) if (n % p == 0) return true
+    false
+  }
+
+  def countMultiplesOf2357(range: Range): Int = {
+    var counter = 0
+    for (n <- range.start to range.end if isMultipleOf2357(n)) counter += 1
+    counter
+  }
+
+  def countOtherNonPrimes(range: Range, maxPrimeDivisor: Int): Int = {
+    val setOfOtherNonPrimes = mutable.SortedSet[Int]()
+    var primeDivisor = 11
+    while (primeDivisor <= maxPrimeDivisor) {
+      val aligned = range % primeDivisor
+      setOfOtherNonPrimes.addAll(
+        for (
+          onp <- aligned.start
+            to aligned.end
+            by primeDivisor if !isMultipleOf2357(onp)
+        ) yield onp)
+      primeDivisor = PrimeUtils.findPrimeAfter(primeDivisor)
+    }
+    setOfOtherNonPrimes.size
+  }
+
+  def countNumberOfPrimes(range: Range, maxPrimeDivisor: Int): Int = {
+    range.capacity -
+      countMultiplesOf2357(range) -
+      countOtherNonPrimes(range, maxPrimeDivisor)
+  }
+
+  def countNumberOfPrimes(primeCouple: PrimeCouple): Int =
+    countNumberOfPrimes(primeCouple.spanningRange, primeCouple.p2)
+
+  def memoizedCount(primeCouple: PrimeCouple): Int = {
+    val memoizedValue = cache(primeCouple)
+    if (memoizedValue != cache.notYetMemoizedValue) {
+      //println(primeCouple + " : " + memoizedValue)
+      memoizedValue
+    } else {
+      println(primeCouple)
+      updateCache(primeCouple, countNumberOfPrimes(primeCouple))
+    }
+  }
+
+  /* 
+    it all starts with "anomalies" :
+      1, is not prime but just an artefact
+      2, is the only even number being a prime number
+      3, is the only prime number away from previous prime by just one
+      5, is the only prime number ending by 5
+      7, is the only prime number divisible by 7
+  */
+  private def apply(range: Range): Int = {
+
+    val squareRoot = math.floor(math.sqrt(range.end)).toInt
+    val lowerBound = PrimeUtils.findPrimeBefore(squareRoot + 1)
+    val upperBound = PrimeUtils.findPrimeAfter(squareRoot - 1)
+
+    var lastPrimeInvolved = lowerBound
+
+    println(squareRoot)
+    println(lowerBound)
+    println(upperBound)
+
+    if (range.end == lowerBound * lowerBound) {
+      println("perfect range !")
+    } else {
+      println("which bound is better ?")
+      val diff1 = squareRoot - lowerBound
+      val diff2 = upperBound - squareRoot
+      println(diff1)
+      println(diff2)
+
+      println(range.end - lowerBound * lowerBound)
+      println(upperBound * upperBound - range.end)
+
+      if (diff1 > diff2) {
+        println("upper bound bound is better")
+        lastPrimeInvolved = upperBound
+      } else println("lower bound bound is better")
+    }
+
+    println(lastPrimeInvolved)
+
+    var sum = 0
+    var primeCouple = PrimeCouple(1, 1)
+
+    while (primeCouple.p2 < lastPrimeInvolved) {
+      primeCouple = primeCouple.next
+      sum += memoizedCount(primeCouple)
+    }
+
+    //println("ending range...")
+
+    if (range.end > primeCouple.spanningRange.end) {
+      println("lower bound ending")
+      val endingRange = Range(primeCouple.spanningRange.end, range.end)
+      println(endingRange)
+      println(endingRange.capacity)
+      sum += countNumberOfPrimes(endingRange, lastPrimeInvolved)
+    } else if (range.end < primeCouple.spanningRange.end) {
+      println("upper bound ending")
+
+      println(primeCouple.spanningRange)
+      val endingRange = Range(range.end, primeCouple.spanningRange.end)
+      println(endingRange)
+
+      sum -= countNumberOfPrimes(endingRange, lastPrimeInvolved)
+
+    } else {
+      println("perfect range ending")
+    }
+
+    sum
+  }
+
+  def apply(end: Int): Int = {
     if (end < 0) throw new Exception(s"$end is not a valid integer !")
-    apply((1, end), useCache, useParallelism, saveCache)
-  }
-
-  private def apply(
-      tuple: (Int, Int),
-      useMemoization: Boolean,
-      useParallelism: Boolean,
-      saveCache: Boolean
-  ): Int = {
-    apply(PrimeRange(tuple), useMemoization, useParallelism, saveCache)
-  }
-
-  // TODO configuration object or builder
-  private def apply(
-      initialRange: PrimeRange,
-      useCache: Boolean,
-      useParallelism: Boolean,
-      saveCache: Boolean
-  ): Int = {
-
-    val squareRoot = math.floor(math.sqrt(initialRange.end)).toInt
-
-    if (useCache && !isCacheLoaded) {
-      PrimesCouple.loadCache()
-      isCacheLoaded = true
-    }
-
-    if (squareRoot < 5)
-      return PrimeUtils
-        .getPrimesBetween(initialRange.start, initialRange.end)
-        .length
-
-    val involvedPrimes = PrimeUtils.getPrimesBetween(3, squareRoot)
-    val primesAfter2357 = involvedPrimes.dropWhile(_ < 11)
-    val twoByTwo = involvedPrimes.zip(involvedPrimes.drop(1))
-
-    val buffer = new ListBuffer[PrimesCouple]
-
-    for (tupleOfPrimes <- twoByTwo) {
-      val primesCouple = PrimesCouple(tupleOfPrimes)
-      primesCouple.setPrimaryDivisorsFrom11(primesAfter2357)
-      primesCouple.useCache(useCache)
-      buffer.addOne(primesCouple)
-    }
-
-    val result0 =
-      PrimesCouple.getFromCache((1, 2)) + PrimesCouple.getFromCache((2, 3))
-
-    val result1 =
-      if (useParallelism) buffer.par.map(_.countPrimes).sum
-      else buffer.map(_.countPrimes).sum
-
-    val result2 =
-      if (buffer.nonEmpty) {
-        val lastPrimeCouple = buffer.last
-        if (initialRange.end > lastPrimeCouple.range.end) {
-          val endingRange =
-            PrimeRange(lastPrimeCouple.range.end, initialRange.end)
-          endingRange.countPrimes(lastPrimeCouple.primaryDivisorsFrom11)
-        } else 0
-      } else 0
-
-    // TODO inject cache filename from configuration object
-    // TODO check if cache is "dirty"
-    if (useCache && saveCache) PrimesCouple.saveCache()
-
-    result0 + result1 + result2
-
+    if (end < 3 * 3) PrimeUtils.getPrimesBetween(1, end).length
+    else apply(Range(1, end))
   }
 
   def main(args: Array[String]): Unit = {
-    println(apply(100))
-    println(apply(1000))
-    println(apply(10000))
-    println(apply(100000))
-    println(apply(1000000))
-    println(apply(10000000))
-    println(apply(100000000))
-    println(apply(1000000000))
-    println(apply(2000000000))
-    println(apply(46340 * 46340))
+    loadCache()
+    //clearCache()
+    println(PrimeCounter(100))
   }
 
 }

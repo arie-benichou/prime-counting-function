@@ -4,3 +4,10 @@
 target
 project
 /.bloop/
+/TODO.txt
+/_IsPrime.scala
+/_data.json
+/data-new.json
+/data-new.zip
+/data-new3.json
+/data2.json
