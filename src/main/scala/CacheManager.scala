@@ -25,7 +25,7 @@ case class CacheManager(
         map.addOne(cachedResult)
       }
       print("\n\u001b[%dA\u001b[2K".format(1)) // Move up and erase line
-      println(s"$size prime ranges loaded from cache ! ${Console.RESET}")
+      println(s"$size prime couples loaded from cache ! ${Console.RESET}")
       this.isLoaded = true
       i
     } else 0

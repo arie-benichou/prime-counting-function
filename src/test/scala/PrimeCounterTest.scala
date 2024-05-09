@@ -199,4 +199,4 @@ class PrimeCounterTest extends munit.FunSuite {
     }
   }
 
-}
+}   

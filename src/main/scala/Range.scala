@@ -26,11 +26,10 @@ sealed case class Range(start: Int, end: Int) {
 
   private def start(newStart: Int): Range = copy(start = newStart)
 
-  private def alignStart(n: Int): Range = start(moduloForward(start, n))
+  def alignStart(n: Int): Range = start(moduloForward(start, n))
+  def alignEnd(n: Int): Range = end(moduloBackward(end, n))
 
-  private def alignEnd(n: Int): Range = end(moduloBackward(end, n))
-
-  override def toString: String = s"[$start, $end]"
+  override def toString: String = s"[$start; $end]"
 
   lazy val capacity: Int = (end - start) + 1
 
