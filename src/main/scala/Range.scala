@@ -22,17 +22,18 @@ import Range._
 
 sealed case class Range(start: Int, end: Int) {
 
+  lazy val capacity: Int = (end - start) + 1
+
   private def end(newEnd: Int): Range = copy(end = newEnd)
 
   private def start(newStart: Int): Range = copy(start = newStart)
 
   def alignStart(n: Int): Range = start(moduloForward(start, n))
+
   def alignEnd(n: Int): Range = end(moduloBackward(end, n))
 
-  override def toString: String = s"[$start; $end]"
-
-  lazy val capacity: Int = (end - start) + 1
-
   def %(n: Int): Range = alignStart(n).alignEnd(n)
+
+  override def toString: String = s"[$start; $end]"
 
 }

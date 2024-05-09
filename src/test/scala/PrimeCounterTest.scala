@@ -138,6 +138,13 @@ class PrimeCounterTest extends munit.FunSuite {
     assertEquals(PrimeCounter(31), 11)
   }
 
+  test(s"from 32 to 3334") {
+    for (n <- 32 to 3334) {
+      val expected = PrimeUtils.countPrimesUntil(n)
+      assertEquals(PrimeCounter(n), expected)
+    }
+  }
+
   test(s"number of primes until 100 should be 25") {
     assertEquals(PrimeCounter(100), 25)
   }
@@ -162,12 +169,20 @@ class PrimeCounterTest extends munit.FunSuite {
   memoization
   */
 
-  test(s"number of primes couples ranges loaded from cache should be 4792") {
-    assertEquals(PrimeCounter.loadCache(), 4792)
+  test(s"number of primes couples ranges loaded from cache should be 4793") {
+    assertEquals(PrimeCounter.loadCache(), 4793)
+  }
+
+  test(s"cache already loaded once should not load one more time") {
+    assertEquals(PrimeCounter.loadCache(), 0)
   }
 
   test(s"number of primes until 10 000 000 should be 664 579") {
     assertEquals(PrimeCounter(10000000), 664579)
+  }
+
+  test(s"number of primes until 79 536 450 should be 4 643 940") {
+    assertEquals(PrimeCounter(79536450), 4643940)
   }
 
   test(s"number of primes until 100 000 000 should be 5 761 455") {
@@ -199,4 +214,4 @@ class PrimeCounterTest extends munit.FunSuite {
     }
   }
 
-}   
+}

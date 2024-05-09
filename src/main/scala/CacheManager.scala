@@ -45,14 +45,4 @@ case class CacheManager(
 
   def clear() = map.clear()
 
-  /*
-  // TODO to remove since  no use for it
-  def next(prime: Int): Int = {
-    map.minAfter((prime, prime + 1)) match {
-      case Some(p) => p._1._2
-      case None    => 0
-    }
-  }
-  */
-
 }

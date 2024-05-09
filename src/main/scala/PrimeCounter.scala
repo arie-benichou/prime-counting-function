@@ -3,11 +3,12 @@ import scala.collection.mutable
 case object PrimeCounter {
 
   private val Singularities = Seq(
-    (PrimeCouple(1, 2), 0),
-    (PrimeCouple(2, 3), 0))
+    (PrimeCouple(1, 1), 1),
+    (PrimeCouple(1, 2), -2),
+    (PrimeCouple(2, 3), -2))
 
   private val cache = new CacheManager(
-    "data-new3.json",
+    "data.json",
     Int.MinValue,
     Singularities.map(s => (s._1.asTuple, s._2)): _*)
 
@@ -15,7 +16,6 @@ case object PrimeCounter {
     cache.update(primeCouple.asTuple, n)
   }
 
-  // TODO rename to unloadCache !!
   def clearCache() = {
     cache.clear()
     for ((pc, n) <- Singularities) updateCache(pc, n)
@@ -23,6 +23,7 @@ case object PrimeCounter {
 
   def regenerateCache() = {
     clearCache()
+    //println(PrimeCounter(100))
     println(PrimeCounter(Int.MaxValue))
     saveCache()
   }
@@ -63,21 +64,26 @@ case object PrimeCounter {
     setOfOtherNonPrimes.size
   }
 
-  // TODO
-  def countNumberOfPrimes(range: Range, maxPrimeDivisor: Int): Int = {
-    range.capacity -
-      countMultiplesOf2357(range) -
-      countOtherNonPrimes(range, maxPrimeDivisor)
-    return 0
+  def multiplesOf2357(x: Int): Int = (x / 35) * 27
+
+  def calculateMultiplesOf2357(range: Range): Int = {
+    val aligned35 = range.alignEnd(35)
+    val m2357 = multiplesOf2357(aligned35.end)
+    if (m2357 < 0) throw new Exception("integer limit reached")
+    m2357 + countMultiplesOf2357(Range(aligned35.end, range.end)) - 1
   }
 
-  def countNumberOfPrimes(primeCouple: PrimeCouple): Int =
-    countNumberOfPrimes(primeCouple.spanningRange, primeCouple.p2)
+  def countNumberOfPrimes(range: Range, numberOfOtherNonPrimes: Int): Int = {
+    range.capacity - (calculateMultiplesOf2357(range) + numberOfOtherNonPrimes)
+  }
 
   def memoizedCount(primeCouple: PrimeCouple): Int = {
     val memoizedValue = cache(primeCouple)
     if (memoizedValue != cache.notYetMemoizedValue) memoizedValue
-    else updateCache(primeCouple, countOtherNonPrimes(primeCouple))
+    else {
+      //print(s"\r $primeCouple -> ")
+      updateCache(primeCouple, countOtherNonPrimes(primeCouple))
+    }
   }
 
   /* 
@@ -91,53 +97,33 @@ case object PrimeCounter {
   private def apply(range: Range): Int = {
 
     val squareRoot = math.floor(math.sqrt(range.end)).toInt
+
     val lowerBound = PrimeUtils.findPrimeBefore(squareRoot + 1)
     val upperBound = PrimeUtils.findPrimeAfter(squareRoot - 1)
 
-    var lastPrimeInvolved = lowerBound
-
-    // TODO clauses may be siplified
-    if (range.end != lowerBound * lowerBound) {
+    var lastPrimeInvolved =
       if (squareRoot - lowerBound > upperBound - squareRoot)
-        lastPrimeInvolved = upperBound
-    }
+        upperBound
+      else lowerBound
 
-    lastPrimeInvolved = lowerBound
-
-    var sum = 0
     var primeCouple = PrimeCouple(1, 1)
+    var numberOfOtherNonPrimes = cache(primeCouple)
 
     while (primeCouple.p2 < lastPrimeInvolved) {
       primeCouple = primeCouple.next
-      sum += memoizedCount(primeCouple)
+      val memo = memoizedCount(primeCouple)
+      numberOfOtherNonPrimes += memo
     }
 
-    // TODO
     if (range.end > primeCouple.spanningRange.end) {
-      ///println("lower bound ending")
-      val endingRange = Range(primeCouple.spanningRange.end, range.end)
-      ///println(endingRange)
-      val s = countOtherNonPrimes(endingRange, lastPrimeInvolved)
-      ///println(s)
-      sum += s
-    } else if (range.end < primeCouple.spanningRange.end) {
-      ///println("upper bound ending")
-      ///println(primeCouple.spanningRange)
-      val endingRange = Range(range.end, primeCouple.spanningRange.end)
-      ///println(endingRange)
-      sum -= countOtherNonPrimes(endingRange, lastPrimeInvolved)
+      val endingRange = Range(primeCouple.spanningRange.end + 1, range.end)
+      numberOfOtherNonPrimes += countOtherNonPrimes(endingRange, lastPrimeInvolved)
     } else {
-      ///println("perfect range ending")
+      val endingRange = Range(range.end + 1, primeCouple.spanningRange.end)
+      numberOfOtherNonPrimes -= countOtherNonPrimes(endingRange, lastPrimeInvolved)
     }
 
-    // TODO extract to countPrimes method
-    def f(x: Int): Int = (x / 35) * 27
-    val alignedRangeEndOn35 = range.alignEnd(35)
-    val m2357 = f(alignedRangeEndOn35.end)
-    if (m2357 < 0) throw new Exception("integer limit reached")
-    val r = Range(alignedRangeEndOn35.end, range.end)
-    val mm = countMultiplesOf2357(r)
-    range.capacity - (sum + (m2357 + mm - 1)) + 4 - 1
+    countNumberOfPrimes(range, numberOfOtherNonPrimes)
 
   }
 
@@ -147,16 +133,13 @@ case object PrimeCounter {
     else apply(Range(1, end))
   }
 
-  // TODO add unit test
+  // TODO parameters parsing : useCache=true, ...
   def main(args: Array[String]): Unit = {
-    //regenerateCache()
-    loadCache()
-    val n = 79536450
+    //loadCache()
+    val n = if (args.isEmpty) 3500000 else args(0).toInt
+    println(s"number of primes from 1 to $n")
     val pc = PrimeCounter(n)
-    println("" + n + " -> " + pc)
-    //val expected = PrimeUtils.countPrimesUntil(n)
-    //println(expected)
-    //if (pc != expected) throw new Exception(s"expected $expected instead of $pc")
+    println(pc)
   }
 
 }
