@@ -2,7 +2,7 @@ class PrimeCounterTest extends munit.FunSuite {
 
   /*
   correctness
-  */
+   */
 
   test(s"number of primes before 0 should rise exception") {
     intercept[Exception] {
@@ -167,7 +167,7 @@ class PrimeCounterTest extends munit.FunSuite {
 
   /*
   memoization
-  */
+   */
 
   test(s"number of primes couples ranges loaded from cache should be 4793") {
     assertEquals(PrimeCounter.loadCache(), 4793)
@@ -207,7 +207,7 @@ class PrimeCounterTest extends munit.FunSuite {
 
   /*
   Integer Limit
-  */
+   */
   test(s"integer limit awareness") {
     intercept[Exception] {
       PrimeCounter.apply((46340 + 1) * (46340 + 1))

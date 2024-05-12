@@ -18,8 +18,6 @@ case object Range {
 
 }
 
-import Range._
-
 sealed case class Range(start: Int, end: Int) {
 
   lazy val capacity: Int = (end - start) + 1
@@ -28,9 +26,9 @@ sealed case class Range(start: Int, end: Int) {
 
   private def start(newStart: Int): Range = copy(start = newStart)
 
-  def alignStart(n: Int): Range = start(moduloForward(start, n))
+  def alignStart(n: Int): Range = start(Range.moduloForward(start, n))
 
-  def alignEnd(n: Int): Range = end(moduloBackward(end, n))
+  def alignEnd(n: Int): Range = end(Range.moduloBackward(end, n))
 
   def %(n: Int): Range = alignStart(n).alignEnd(n)
 
