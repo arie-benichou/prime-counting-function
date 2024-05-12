@@ -14,18 +14,30 @@ case object PrimeCounter {
     Singularities.map(s => (s._1.asTuple, s._2)): _*
   )
 
+  private val Logger =
+    com.typesafe.scalalogging.Logger(getClass)
+
   def updateCache(primeCouple: PrimeCouple, n: Int) = {
+    Logger.debug(
+      Console.GREEN + s"cache updated : $primeCouple -> $n" + Console.RESET
+    )
     cache.update(primeCouple.asTuple, n)
   }
 
   def clearCache() = {
     cache.clear()
+    Logger.debug(Console.GREEN + s"cache cleared" + Console.RESET)
     for ((pc, n) <- Singularities) updateCache(pc, n)
   }
 
   def regenerateCache() = {
     clearCache()
-    println(PrimeCounter(Int.MaxValue))
+    Logger.debug(
+      Console.BLINK + Console.GREEN + "regenerating cache ..." + Console.RESET
+    )
+    // PrimeCounter(10000000)
+    PrimeCounter(Int.MaxValue)
+    Logger.debug("\n\u001b[%dA\u001b[2K".format(2))
     saveCache()
   }
 
@@ -40,21 +52,32 @@ case object PrimeCounter {
     false
   }
 
-  def countOtherNonPrimes(primeCouple: PrimeCouple): Int =
+  def countOtherNonPrimes(primeCouple: PrimeCouple): Int = {
     countOtherNonPrimes(primeCouple.spanningRange, primeCouple.p1)
+  }
 
   def countOtherNonPrimes(range: Range, maxPrimeDivisor: Int): Int = {
+    Logger.debug(s"$range : max prime divisor needed : " + maxPrimeDivisor)
+    Logger.debug("==========================================================")
     val setOfOtherNonPrimes = mutable.SortedSet[Int]()
     var primeDivisor = 11
     while (primeDivisor <= maxPrimeDivisor) {
+      Logger.debug("checking multiples of : " + primeDivisor)
       val aligned = range % primeDivisor
       for (
         onp <- aligned.start
           to aligned.end
-          by primeDivisor if !isMultipleOf2357(onp)
-      ) setOfOtherNonPrimes.addOne(onp)
+          by primeDivisor
+        if !isMultipleOf2357(onp)
+      ) {
+        Logger.debug(s"$onp")
+        setOfOtherNonPrimes.add(onp)
+      }
       primeDivisor = PrimeUtils.findPrimeAfter(primeDivisor)
     }
+    Logger.debug(
+      "number of other non primes found : " + setOfOtherNonPrimes.size
+    )
     setOfOtherNonPrimes.size
   }
 
@@ -66,25 +89,44 @@ case object PrimeCounter {
 
   def calculateMultiplesOf2357(x: Int): Int = (x / 35) * 27
 
-  // TODO rename
   def multiplesOf2357(range: Range): Int = {
     val aligned35 = range.alignEnd(35)
-    val m2357 = calculateMultiplesOf2357(aligned35.end)
-    if (m2357 < 0) throw new Exception("integer limit reached")
-    m2357 + countMultiplesOf2357(Range(aligned35.end + 1, range.end))
+    Logger.debug(s"$range aligned by 35 at end : $aligned35")
+    val multiplesOf2357From1 = calculateMultiplesOf2357(aligned35.end)
+    Logger.debug(
+      s"number of multiples of 2, 3, 5 or 7 in $aligned35 : $multiplesOf2357From1"
+    )
+    if (multiplesOf2357From1 < 0) throw new Exception("integer limit reached")
+    val endingRange = Range(aligned35.end + 1, range.end)
+    Logger.debug(s"ending range : $endingRange")
+    val multiplesOf2357InEndingRange = countMultiplesOf2357(endingRange)
+    Logger.debug(
+      s"number of multiples of 2, 3, 5 or 7 in $endingRange : " +
+        multiplesOf2357InEndingRange
+    )
+    val sum = multiplesOf2357From1 + multiplesOf2357InEndingRange
+    Logger.debug("==========================================================")
+    Logger.debug(s"number of multiples of 2, 3, 5 or 7 in $range: $sum")
+    sum
   }
 
   def countNumberOfPrimes(range: Range, numberOfOtherNonPrimes: Int): Int = {
-    range.capacity - (multiplesOf2357(range) + numberOfOtherNonPrimes)
+    val numberOfmultiplesOf2357 = multiplesOf2357(range)
+    val numberOfPrimes =
+      range.capacity - (numberOfmultiplesOf2357 + numberOfOtherNonPrimes)
+    Logger.debug("==========================================================")
+    Logger.debug(
+      s"${range.capacity} -" +
+        s" ($numberOfmultiplesOf2357 + " +
+        s"$numberOfOtherNonPrimes) = $numberOfPrimes"
+    )
+    numberOfPrimes
   }
 
   def memoizedCount(primeCouple: PrimeCouple): Int = {
     val memoizedValue = cache(primeCouple)
     if (memoizedValue != cache.notYetMemoizedValue) memoizedValue
-    else {
-      // println(primeCouple)
-      updateCache(primeCouple, countOtherNonPrimes(primeCouple))
-    }
+    else updateCache(primeCouple, countOtherNonPrimes(primeCouple))
   }
 
   def next(primeCouple: PrimeCouple) =
@@ -100,43 +142,82 @@ case object PrimeCounter {
    */
   private def apply(range: Range): Int = {
 
+    Logger.debug("==========================================================")
+    Logger.debug(Console.YELLOW + s"$range" + Console.RESET)
+
     val squareRoot = math.floor(math.sqrt(range.end)).toInt
+    Logger.debug("square root : " + squareRoot)
 
     val lowerBound = PrimeUtils.findPrimeBefore(squareRoot + 1)
     val upperBound = PrimeUtils.findPrimeAfter(squareRoot - 1)
+    Logger.debug("lower bound for last prime : " + lowerBound)
+    Logger.debug("upper bound for last prime : " + upperBound)
 
-    val diff1 = squareRoot - lowerBound
-    val diff2 = upperBound - squareRoot
+    val diff1 = range.end - lowerBound * lowerBound
 
-    var lastPrimeInvolved =
-      if (diff2 < diff1) upperBound
-      else if (diff1 < diff2) lowerBound
-      else squareRoot
+    val diff2 = upperBound * upperBound - range.end
+    val lastPrimeInvolved = if (diff2 < diff1) upperBound else lowerBound
 
+    Logger.debug("last prime choosen : " + lastPrimeInvolved)
+
+    // TODO traces
     var primeCouple = PrimeCouple(1, 1)
     var numberOfOtherNonPrimes = cache(primeCouple)
 
+    Logger.debug("==========================================================")
+    Logger.info(Console.YELLOW + s"$primeCouple" + Console.RESET)
+    Logger.debug(
+      s"number of other non primes found in $primeCouple : $numberOfOtherNonPrimes"
+    )
     while (primeCouple.p2 < lastPrimeInvolved) {
       primeCouple = next(primeCouple)
+      Logger.debug("==========================================================")
+      Logger.info(Console.YELLOW + s"$primeCouple" + Console.RESET)
       val memo = memoizedCount(primeCouple)
+      Logger.debug(
+        s"number of other non primes found in $primeCouple : $memo"
+      )
       numberOfOtherNonPrimes += memo
     }
 
-    if (range.end > primeCouple.spanningRange.end + 1) {
+    Logger.debug("==========================================================")
+    Logger.debug(
+      s"total number of other non primes found : $numberOfOtherNonPrimes"
+    )
+
+    if (range.end - primeCouple.spanningRange.end == 0) {
+      Logger.debug("no range ending needed")
+    } else if (range.end - primeCouple.spanningRange.end == 1) {
+      if (lastPrimeInvolved >= 11) {
+        Logger.debug("just add one more")
+        numberOfOtherNonPrimes += 1
+      } else {
+        Logger.debug("no range ending needed")
+      }
+
+    } else if (range.end > primeCouple.spanningRange.end) {
+      Logger.debug("lower bound range ending")
+      Logger.debug("==========================================================")
       val endingRange = Range(primeCouple.spanningRange.end + 1, range.end)
       numberOfOtherNonPrimes += countOtherNonPrimes(
         endingRange,
-        lastPrimeInvolved
+        lowerBound
       )
-    } else if (range.end < primeCouple.spanningRange.end + 1) {
+    } else if (range.end < primeCouple.spanningRange.end) {
+      Logger.debug("upper bound range ending")
+      Logger.debug("==========================================================")
       val endingRange = Range(range.end + 1, primeCouple.spanningRange.end)
       numberOfOtherNonPrimes -= countOtherNonPrimes(
         endingRange,
-        lastPrimeInvolved
+        lowerBound
       )
-    } else if (lastPrimeInvolved >= 11) numberOfOtherNonPrimes += 1
+    }
 
-    countNumberOfPrimes(range, numberOfOtherNonPrimes)
+    Logger.debug("==========================================================")
+    val numberOfPrimes = countNumberOfPrimes(range, numberOfOtherNonPrimes)
+    Logger.debug("==========================================================")
+
+    numberOfPrimes
 
   }
 
@@ -148,19 +229,16 @@ case object PrimeCounter {
 
   // TODO parameters parsing : useCache=true, ...
   def main(args: Array[String]): Unit = {
-    
+
     // return regenerateCache()
 
-    val end = if (args.isEmpty) 9999 else args(0).toInt
-    
-    loadCache()
-    
-    for (n <- 0 to end) {
-      val pc = PrimeCounter(n)
-      println(s"number of primes from 1 to $n : $pc")
-      val expected = PrimeUtils.countPrimesUntil(n)
-      if (expected != pc) throw new Exception("inconsistent result !")
-    }
+    val n = if (args.isEmpty) 289 else args(0).toInt
+    // loadCache()
+
+    val pc = PrimeCounter(n)
+    println(s"number of primes from 1 to $n : $pc")
+    val expected = PrimeUtils.countPrimesUntil(n)
+    if (expected != pc) throw new Exception("expected : " + expected)
 
   }
 

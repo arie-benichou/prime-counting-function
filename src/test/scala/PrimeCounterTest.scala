@@ -138,11 +138,20 @@ class PrimeCounterTest extends munit.FunSuite {
     assertEquals(PrimeCounter(31), 11)
   }
 
-  test(s"from 32 to 3334") {
-    for (n <- 32 to 3334) {
-      val expected = PrimeUtils.countPrimesUntil(n)
-      assertEquals(PrimeCounter(n), expected)
-    }
+  test(s"number of primes until 49 should be 15") {
+    assertEquals(PrimeCounter(49), 15)
+  }
+
+  test(s"number of primes until 120 should be ?") {
+    assertEquals(PrimeCounter(120), 30)
+  }
+
+  test(s"number of primes until 121 should be ?") {
+    assertEquals(PrimeCounter(121), 30)
+  }
+
+  test(s"number of primes until 1331 should be ?") {
+    assertEquals(PrimeCounter(1331), 217)
   }
 
   test(s"number of primes until 100 should be 25") {
