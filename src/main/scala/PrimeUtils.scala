@@ -54,6 +54,20 @@ object PrimeUtils {
     counter
   }
 
+  def findPrimeFromOrder(n: Int): Int = {
+    if (n < 0) throw new Exception(s"$n is not a valid integer !")
+    if (n == 0) throw new Exception("order 0 is not defined.")
+    if (n == 1) return 2
+    if (n == 2) return 3
+    var counter = 2
+    var x = 3
+    while (counter < n) {
+      x += 2
+      if (isPrime(x)) counter += 1
+    }
+    x
+  }
+
   def getPrimesUntil(n: Int): Seq[Int] = {
     if (n < 0) throw new Exception(s"$n is not a valid integer !")
     if (n < 2) return Nil

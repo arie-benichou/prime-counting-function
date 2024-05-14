@@ -1,7 +1,10 @@
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 import ch.qos.logback.classic.{Level, Logger}
 import org.slf4j.LoggerFactory
+
+import PrimeUtils._
 
 case object PrimeCounter {
 
@@ -105,7 +108,7 @@ case object PrimeCounter {
         Logger.debug(s"$onp")
         setOfOtherNonPrimes.add(onp)
       }
-      primeDivisor = PrimeUtils.findPrimeAfter(primeDivisor)
+      primeDivisor = findPrimeAfter(primeDivisor)
     }
     Logger.debug(
       "number of other non primes found : " + setOfOtherNonPrimes.size
@@ -145,7 +148,10 @@ case object PrimeCounter {
     sum
   }
 
-  def countNumberOfPrimes(range: Range, numberOfOtherNonPrimes: Int): Int = {
+  def calculateNumberOfPrimes(
+      range: Range,
+      numberOfOtherNonPrimes: Int
+  ): Int = {
     val numberOfmultiplesOf2357 = multiplesOf2357(range)
     val numberOfPrimes =
       range.capacity - (numberOfmultiplesOf2357 + numberOfOtherNonPrimes)
@@ -167,11 +173,71 @@ case object PrimeCounter {
         s"number of other non primes found : $memoizedValue"
       )
       memoizedValue
-    } else updateCache(primeCouple, countOtherNonPrimes(primeCouple))
+    } else {
+      if (primeCouple.spanningRange.end < 0)
+        throw new Exception("integer limit reached !")
+      updateCache(primeCouple, countOtherNonPrimes(primeCouple))
+    }
+
   }
 
   def next(primeCouple: PrimeCouple) =
-    PrimeCouple(primeCouple.p2, PrimeUtils.findPrimeAfter(primeCouple.p2))
+    PrimeCouple(primeCouple.p2, findPrimeAfter(primeCouple.p2))
+
+  def remainingRange(
+      range: Range,
+      primeCouple: PrimeCouple,
+      numberOfOtherNonPrimes: Int,
+      lastPrimeNeeded: Int
+  ): Int = {
+
+    var nonp = 0
+
+    Logger.debug("==========================================================")
+    Logger.debug(
+      Console.YELLOW +
+        s"total number of other non primes found in " +
+        s"${range.end(primeCouple.spanningRange.end)} : " +
+        s"$numberOfOtherNonPrimes" +
+        Console.RESET
+    )
+    if (range.end - primeCouple.spanningRange.end == 0) {
+      Logger.debug("==========================================================")
+      Logger.debug("no range ending needed")
+    } else if (range.end - primeCouple.spanningRange.end == 1) {
+      if (primeCouple.p2 >= 11) {
+        Logger.debug("just need to add one more")
+        nonp += 1
+      } else Logger.debug("no range ending needed")
+    } else if (range.end > primeCouple.spanningRange.end) {
+      Logger.debug("lower bound range ending")
+      Logger.debug("==========================================================")
+      val endingRange = Range(primeCouple.spanningRange.end + 1, range.end)
+      nonp += countOtherNonPrimes(
+        endingRange,
+        lastPrimeNeeded
+      )
+    } else if (range.end < primeCouple.spanningRange.end) {
+      Logger.debug("upper bound range ending")
+      Logger.debug("==========================================================")
+      val endingRange = Range(range.end + 1, primeCouple.spanningRange.end)
+      nonp -= countOtherNonPrimes(
+        endingRange,
+        lastPrimeNeeded
+      )
+    }
+
+    Logger.debug("==========================================================")
+    Logger.debug(
+      Console.YELLOW +
+        s"total number of other non primes found in " +
+        s"${range} : " +
+        s"{$numberOfOtherNonPrimes + $nonp}" +
+        Console.RESET
+    )
+
+    numberOfOtherNonPrimes + nonp
+  }
 
   /*
     it all starts with "anomalies" :
@@ -182,36 +248,25 @@ case object PrimeCounter {
       7, is the only prime number divisible by 7
    */
   private def apply(range: Range): Int = {
-
     Logger.debug("==========================================================")
     Logger.debug(Console.YELLOW + s"counting primes in $range" + Console.RESET)
-
     val squareRoot = math.floor(math.sqrt(range.end)).toInt
-
     Logger.debug("square root : " + squareRoot)
-
-    val lowerBound = PrimeUtils.findPrimeBefore(squareRoot + 1)
-    val upperBound = PrimeUtils.findPrimeAfter(squareRoot - 1)
-
+    val lowerBound = findPrimeBefore(squareRoot + 1)
+    val upperBound = findPrimeAfter(squareRoot - 1)
     Logger.debug("lower bound for last prime : " + lowerBound)
     Logger.debug("upper bound for last prime : " + upperBound)
-
     val diff1 = range.end - lowerBound * lowerBound
-
     val diff2 = upperBound * upperBound - range.end
     val lastPrimeInvolved = if (diff2 < diff1) upperBound else lowerBound
-
     Logger.debug("last prime choosen : " + lastPrimeInvolved)
     Logger.debug("==========================================================")
-
     var primeCouple = PrimeCouple(1, 1)
     var numberOfOtherNonPrimes = cache(primeCouple)
-
     Logger.info(s"${Console.YELLOW}$primeCouple${Console.RESET}")
     Logger.debug(
       s"number of other non primes found : $numberOfOtherNonPrimes"
     )
-
     while (primeCouple.p2 < lastPrimeInvolved) {
       primeCouple = next(primeCouple)
       Logger.debug("==========================================================")
@@ -220,73 +275,148 @@ case object PrimeCounter {
       numberOfOtherNonPrimes += memo
     }
 
-    Logger.debug("==========================================================")
-    Logger.debug(
-      Console.YELLOW +
-        s"total number of other non primes found : " +
-        s"$numberOfOtherNonPrimes" +
-        Console.RESET
-    )
-
-    if (range.end - primeCouple.spanningRange.end == 0) {
-      Logger.debug("no range ending needed")
-    } else if (range.end - primeCouple.spanningRange.end == 1) {
-      if (lastPrimeInvolved >= 11) {
-        Logger.debug("just need to add one more")
-        numberOfOtherNonPrimes += 1
-        Logger.debug(
-          Console.YELLOW +
-            s"total number of other non primes found : " +
-            s"$numberOfOtherNonPrimes" +
-            Console.RESET
-        )
-      } else Logger.debug("no range ending needed")
-    } else if (range.end > primeCouple.spanningRange.end) {
-      Logger.debug("lower bound range ending")
-      Logger.debug("==========================================================")
-      val endingRange = Range(primeCouple.spanningRange.end + 1, range.end)
-      numberOfOtherNonPrimes += countOtherNonPrimes(
-        endingRange,
-        lowerBound
-      )
-    } else if (range.end < primeCouple.spanningRange.end) {
-      Logger.debug("upper bound range ending")
-      Logger.debug("==========================================================")
-      val endingRange = Range(range.end + 1, primeCouple.spanningRange.end)
-      numberOfOtherNonPrimes -= countOtherNonPrimes(
-        endingRange,
-        lowerBound
-      )
-    }
+    val finalNumberOfOtherNonPrimes =
+      remainingRange(range, primeCouple, numberOfOtherNonPrimes, lowerBound)
 
     Logger.debug("==========================================================")
-    val numberOfPrimes = countNumberOfPrimes(range, numberOfOtherNonPrimes)
+    val numberOfPrimes =
+      calculateNumberOfPrimes(range, finalNumberOfOtherNonPrimes)
     Logger.debug("==========================================================")
 
     numberOfPrimes
+  }
 
+  def primeFromOrder(order: Int): Int = {
+
+    // integer implementation limit
+    if (order > 105080513) throw new Exception(s"max order is 105080512")
+
+    if (order < 0) throw new Exception(s"$order is not a valid integer !")
+    if (order == 0) throw new Exception("order 0 is not defined.")
+
+    if (order == 1) return 2
+    if (order == 2) return 3
+    if (order == 3) return 5
+    if (order == 4) return 7
+
+    var primeCouple = PrimeCouple(1, 1)
+    var numberOfOtherNonPrimes = cache(primeCouple)
+    var numberOfPrimes = 0
+    var previous = (primeCouple, numberOfPrimes, numberOfOtherNonPrimes)
+
+    while (numberOfPrimes < order) {
+      previous = (primeCouple, numberOfPrimes, numberOfOtherNonPrimes)
+      primeCouple = next(primeCouple)
+      numberOfOtherNonPrimes += memoizedCount(primeCouple)
+      numberOfPrimes = calculateNumberOfPrimes(
+        primeCouple.spanningRange.start(1),
+        numberOfOtherNonPrimes
+      )
+    }
+
+    val last = (primeCouple, numberOfPrimes, numberOfOtherNonPrimes)
+
+    Logger.debug(s"$previous")
+    Logger.debug(s"$last")
+
+    val (primeCouple1, numberOfPrimes1, numberOfOtherNonPrimes1) = last
+    val (primeCouple2, numberOfPrimes2, numberOfOtherNonPrimes2) = previous
+
+    val diff1 = order - numberOfPrimes2
+    val diff2 = numberOfPrimes1 - order
+
+    val interpolation =
+      if (diff2 < diff1) {
+        Logger.debug(s"estimation from upper bound $numberOfPrimes1 :")
+        val diff = numberOfPrimes1 - order
+        val ratio = math.log(primeCouple1.spanningRange.end)
+        primeCouple1.spanningRange.end - (ratio * diff).toInt
+      } else {
+        Logger.debug(s"estimation from lower bound $numberOfPrimes2 :")
+        val diff = order - numberOfPrimes2
+        val ratio = math.log(primeCouple2.spanningRange.end)
+        primeCouple1.spanningRange.start + (ratio * diff).toInt
+      }
+
+    val prime =
+      if (isPrime(interpolation)) interpolation
+      else findPrimeAfter(interpolation)
+
+    val range = Range(1, prime)
+
+    val finalNumberOfOtherNonPrimes =
+      if (diff2 < diff1) {
+        remainingRange(
+          range,
+          primeCouple1,
+          numberOfOtherNonPrimes1,
+          primeCouple1.p2
+        )
+      } else {
+        remainingRange(
+          range,
+          primeCouple2,
+          numberOfOtherNonPrimes2,
+          primeCouple2.p2
+        )
+      }
+
+    val delta =
+      order - calculateNumberOfPrimes(range, finalNumberOfOtherNonPrimes)
+
+    @inline
+    @tailrec
+    def after(interpolation: Int, delta: Int): Int = {
+      if (delta == 0) interpolation
+      else after(findPrimeAfter(interpolation), delta - 1)
+    }
+
+    @inline
+    @tailrec
+    def before(interpolation: Int, delta: Int): Int = {
+      if (delta == 0) interpolation
+      else before(findPrimeBefore(interpolation), delta + 1)
+    }
+
+    if (delta < 0)
+      before(prime, delta)
+    else if (delta > 0)
+      after(prime, delta)
+    else
+      prime
   }
 
   def apply(end: Int): Int = {
     if (end < 0) throw new Exception(s"$end is not a valid integer !")
-    if (end < 3 * 3) PrimeUtils.countPrimesUntil(end)
+    if (end < 3 * 3) countPrimesUntil(end)
     else apply(Range(1, end))
   }
 
-  // TODO parameters parsing : useCache=true, ...
+  // TODO tests with Long or BigInt
+  def isBigPrime(n: Int) = primeFromOrder(PrimeCounter(n)) == n
+
   def main(args: Array[String]): Unit = {
 
     // return regenerateCache()
 
-    // loadCache()
+    val before = System.nanoTime;
+    loadCache()
+    val elapsedTime = System.nanoTime - before
+    // println(elapsedTime / math.pow(10, 9))
 
-    val n = if (args.isEmpty) 161 else args(0).toInt
+    val n = if (args.isEmpty) 5857 else args(0).toInt
 
-    val pc = PrimeCounter(n)
-    println(s"number of primes from 1 to $n : $pc")
-
-    val expected = PrimeUtils.countPrimesUntil(n)
-    if (expected != pc) throw new Exception("expected : " + expected)
+    println
+    println("number           : " + n)
+    println
+    val order = PrimeCounter(n)
+    println("order            : " + order)
+    val prime = primeFromOrder(order)
+    println("prime from order : " + prime)
+    println
+    println(s"is $n prime ?")
+    println(" -> " + isBigPrime(n)) // n == prime
+    println
 
   }
 
