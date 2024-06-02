@@ -1,39 +1,48 @@
 case object Range {
 
-  def moduloForward(alignee: Int, aligner: Int): Int = {
+  def moduloForward(alignee: Long, aligner: Long): Long = {
     val remainder = alignee % aligner
-    if (remainder == 0) return alignee
-    alignee + (aligner - remainder)
+    if (remainder == 0) alignee else alignee + (aligner - remainder)
   }
 
-  def moduloBackward(alignee: Int, aligner: Int): Int = {
+  def moduloBackward(alignee: Long, aligner: Long): Long = {
     val remainder = alignee % aligner
-    if (remainder == 0) return alignee
-    alignee - remainder
+    if (remainder == 0) alignee else alignee - remainder
   }
 
-  def apply(tuple: (Int, Int)): Range = apply(tuple._1, tuple._2)
+  def apply(tuple: (Long, Long)): Range = apply(tuple._1, tuple._2)
 
-  def apply(end: Int): Range = new Range(1, end)
+  def apply(end: Long): Range = new Range(1, end)
 
-  def apply(start: Int, end: Int): Range = new Range(start, end)
+  def apply(start: Long, end: Long): Range = new Range(start, end)
 
 }
 
-sealed case class Range(start: Int, end: Int) {
+case class Range(start: Long, end: Long) {
 
-  lazy val capacity: Int = (end - start) + 1
+  lazy val polarity: Int = if (start > end) -1 else 1
 
-  def end(newEnd: Int): Range = copy(end = newEnd)
+  lazy val capacity: Long = (end - start) + 1
 
-  def start(newStart: Int): Range = copy(start = newStart)
+  lazy val isSingleton = capacity == 1
 
-  def alignStart(n: Int): Range = start(Range.moduloForward(start, n))
+  def swap(): Range = copy(start = this.end, end = this.start)
 
-  def alignEnd(n: Int): Range = end(Range.moduloBackward(end, n))
+  def end(newEnd: Long): Range = copy(end = newEnd)
 
-  def %(n: Int): Range = alignStart(n).alignEnd(n)
+  def start(newStart: Long): Range = copy(start = newStart)
 
-  override def toString: String = s"[$start; $end]"
+  def alignStart(n: Long): Range = start(Range.moduloForward(start, n))
+
+  def alignEnd(n: Long): Range = end(Range.moduloBackward(end, n))
+
+  def %(n: Long): Range = alignStart(n).alignEnd(n)
+
+  // for faster % operation
+  def alignedEdgesOn(n: Long) =
+    (Range.moduloForward(this.start, n), Range.moduloBackward(this.end, n))
+
+  override def toString: String =
+    if (isSingleton) s"{${start}}" else s"[$start ; $end]"
 
 }

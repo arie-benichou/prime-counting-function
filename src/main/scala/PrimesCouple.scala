@@ -1,14 +1,14 @@
-case object PrimeCouple {
+case object PrimesCouple {
 
-  def apply(primeCouple: (Int, Int)): PrimeCouple =
+  def apply(primeCouple: (Long, Long)): PrimesCouple =
     apply(primeCouple._1, primeCouple._2)
 
-  def apply(p1: Int, p2: Int): PrimeCouple =
-    new PrimeCouple(p1, p2)
+  def apply(p1: Long, p2: Long): PrimesCouple =
+    new PrimesCouple(p1, p2)
 
 }
 
-sealed case class PrimeCouple(p1: Int, p2: Int) {
+sealed case class PrimesCouple(p1: Long, p2: Long) {
 
   lazy val asTuple = (p1, p2)
 
