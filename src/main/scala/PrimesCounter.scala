@@ -1,3 +1,4 @@
+import scala.annotation.tailrec
 import scala.collection.mutable
 import PrimesUtils._
 import Primes2357._
@@ -121,11 +122,11 @@ object PrimesCounter {
         findPrimeAfter(middle.p1)
       )
       var numberOfOtherNonPrimes = memoizedCountOfOtherNonPrimes(primesCouple)
-      println(primesCouple)
+      // println(primesCouple)
       while (primesCouple.p2 < middle.p2) {
         primesCouple =
           PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
-        println(primesCouple)
+        // println(primesCouple)
         numberOfOtherNonPrimes += memoizedCountOfOtherNonPrimes(primesCouple)
       }
       // TODO extract constant
@@ -177,29 +178,30 @@ object PrimesCounter {
     if (order == 3) return 5
     if (order == 4) return 7
 
-    var primesCouple = PrimesCouple(1, 1)
+    println(order)
+
+    var primesCouple = PrimesCouple(1, 2)
     var numberOfOtherNonPrimes = memoizedCountOfOtherNonPrimes(primesCouple)
-    var numberOfPrimes = calculateNumberOfPrimes(
+
+    var numberOfPrimesInthisRange = calculateNumberOfPrimes(
       primesCouple.spanningRange,
       numberOfOtherNonPrimes
     )
 
-    println(numberOfPrimes)
+    var numberOfPrimes = numberOfPrimesInthisRange
 
     while (numberOfPrimes < order) {
+
       primesCouple =
         PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
 
-      println(primesCouple)
+      // println(primesCouple)
 
       val memo = memoizedCountOfOtherNonPrimes(primesCouple)
       numberOfOtherNonPrimes += memo
 
-      val range =
-        primesCouple.spanningRange
-
-      val numberOfPrimesInthisRange = calculateNumberOfPrimes(
-        range,
+      numberOfPrimesInthisRange = calculateNumberOfPrimes(
+        primesCouple.spanningRange,
         memo
       )
 
@@ -207,19 +209,55 @@ object PrimesCounter {
 
     }
 
-    val last = (primesCouple, numberOfPrimes)
-    println(last)
+    // println(numberOfPrimes)
 
-    // val (primesCouple1, numberOfPrimes1, numberOfOtherNonPrimes1) = last
-    // val (primesCouple2, numberOfPrimes2, numberOfOtherNonPrimes2) = previous
+    // println(primesCouple)
+    // println(numberOfPrimesInthisRange)
 
-    // val diff1 = order - numberOfPrimes2
-    // val diff2 = numberOfPrimes1 - order
+    // val average1 =
+    //   primesCouple.spanningRange.capacity / numberOfPrimesInthisRange
+    // println("average1 :" + average1)
 
-    // println(previous)
-    // println(last)
+    val average = math.log(
+      primesCouple.spanningRange.start + primesCouple.spanningRange.capacity / 2
+    )
+    val diff = numberOfPrimesInthisRange - (numberOfPrimes - order)
+    val estimate = (primesCouple.spanningRange.start + average * diff).toLong
+    //println(estimate)
 
-    return 0
+    val prime = if (isPrime(estimate)) estimate else findPrimeAfter(estimate)
+
+    val partitioning =
+      Partitioning.of(Range(primesCouple.spanningRange.start, prime))
+    //println(partitioning.traces)
+    val eval = PrimesCounter.evaluate(partitioning)
+    //println("eval : " + eval)
+
+    val delta = diff - eval
+    //println(delta)
+
+    def findPrime(prime: Long, direction: Long): Long = {
+      if (direction > 0) findPrimeAfter(prime)
+      else findPrimeBefore(prime)
+    }
+
+    @inline
+    @tailrec
+    def after(prime: Long, delta: Long): Long = {
+      if (delta == 0) prime
+      else after(findPrime(prime, 1), delta - 1)
+    }
+
+    @inline
+    @tailrec
+    def before(prime: Long, delta: Long): Long = {
+      if (delta == 0) prime
+      else before(findPrime(prime, -1), delta + 1)
+    }
+
+    if (delta < 0) before(prime, delta)
+    else if (delta > 0) after(prime, delta)
+    else prime
 
     /*
 
@@ -312,19 +350,18 @@ object PrimesCounter {
   def main(args: Array[String]): Unit = {
 
     loadCache()
-    // saveCache()
-
-    primeFromOrder(31L)
-    return
-
     // return regenerateCache()
 
-    val (start, end) = (args(0).toLong, args(1).toLong)
+    val prime = primeFromOrder(args(0).toLong) // TODO rename into primeFromRank
+
+    println(prime)
+
+    val (start, end) = (1, prime) // (args(0).toLong, args(1).toLong)
     val partitioning = Partitioning.of(Range(start, end))
-    println(partitioning.traces)
+    // println(partitioning.traces)
     println(PrimesCounter.evaluate(partitioning))
 
-    println(getPrimesBetween(start, end).size) // TODO count
+    // println(getPrimesBetween(start, end).size) // TODO count
 
   }
 
