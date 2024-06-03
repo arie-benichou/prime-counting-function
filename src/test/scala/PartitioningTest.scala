@@ -94,7 +94,7 @@ class PartitioningTest extends munit.FunSuite {
   test("[3, 25]") {
     assertNoDiff(
       Partitioning.of(Range(3, 25)).toString,
-      "- [2 ; 1] + [1 x 1 ; 5 x 5]"
+      "{3} + [2 x 2 ; 5 x 5]"
     )
   }
 

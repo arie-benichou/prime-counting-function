@@ -79,8 +79,7 @@ case object Partitioning {
       else findPrimeBefore(squareRoot + 1)
 
     val primeAfter =
-      if (squareRoot == 1) 1
-      else if (squareRoot == 2) 3
+      if (squareRoot == 2) 3
       else findPrimeAfter(squareRoot - 1)
 
     (
@@ -192,7 +191,7 @@ case object Partitioning {
     lazy val isApplicable = hasMiddlePart && isWorthy
 
     lazy val traces =
-        s"range  : $initialRange \n" +
+      s"range  : $initialRange \n" +
         s" ->    : ${this.state} \n" +
         s" ->    : ${format(this)} \n" +
         s"worthy : ${this.isWorthy} \n" +
