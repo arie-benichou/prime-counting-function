@@ -54,7 +54,7 @@ object PrimesUtils {
     counter
   }
 
-  def findPrimeFromOrder(n: Long): Long = {
+  def findPrimeFromRank(n: Long): Long = {
     if (n < 0) throw new Exception(s"$n is not a valid integer !")
     if (n == 0) throw new Exception("order 0 is not defined.")
     if (n == 1) return 2

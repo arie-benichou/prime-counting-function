@@ -188,80 +188,79 @@ class PrimesCounterTest extends munit.FunSuite {
   }
 
   /*
-  correctness tests for prime from order
+  correctness tests for prime from rank
+  */
 
-
-  test("prime from order < 0 should rise exception") {
+  test("prime from rank < 0 should rise exception") {
     intercept[Exception] {
-      PrimesCounter.primeFromOrder(-1)
+      PrimesCounter.primeFromRank(-1)
     }
   }
 
-  test("prime from order 0 should rise exception") {
+  test("prime from rank 0 should rise exception") {
     intercept[Exception] {
-      PrimesCounter.primeFromOrder(0)
+      PrimesCounter.primeFromRank(0)
     }
   }
 
-  test("prime from order 1 should be 2") {
-    assertEquals(PrimesCounter.primeFromOrder(1), 2L)
+  test("prime from rank 1 should be 2") {
+    assertEquals(PrimesCounter.primeFromRank(1), 2L)
   }
 
-  test("prime from order 2 should be 3") {
-    assertEquals(PrimesCounter.primeFromOrder(2), 3L)
+  test("prime from rank 2 should be 3") {
+    assertEquals(PrimesCounter.primeFromRank(2), 3L)
   }
 
-  test("prime from order 3 should be 5") {
-    assertEquals(PrimesCounter.primeFromOrder(3), 5L)
+  test("prime from rank 3 should be 5") {
+    assertEquals(PrimesCounter.primeFromRank(3), 5L)
   }
 
-  test("prime from order 4 should be 7") {
-    assertEquals(PrimesCounter.primeFromOrder(4), 7L)
+  test("prime from rank 4 should be 7") {
+    assertEquals(PrimesCounter.primeFromRank(4), 7L)
   }
 
-  test("prime from order 5 should be 11") {
-    assertEquals(PrimesCounter.primeFromOrder(5), 11L)
+  test("prime from rank 5 should be 11") {
+    assertEquals(PrimesCounter.primeFromRank(5), 11L)
   }
 
-  test("prime from order 6 should be 13") {
-    assertEquals(PrimesCounter.primeFromOrder(6), 13L)
+  test("prime from rank 6 should be 13") {
+    assertEquals(PrimesCounter.primeFromRank(6), 13L)
   }
 
-  test("prime from order 7 should be 17") {
-    assertEquals(PrimesCounter.primeFromOrder(7), 17L)
+  test("prime from rank 7 should be 17") {
+    assertEquals(PrimesCounter.primeFromRank(7), 17L)
   }
 
-  test("prime from order 8 should be 19") {
-    assertEquals(PrimesCounter.primeFromOrder(8), 19L)
+  test("prime from rank 8 should be 19") {
+    assertEquals(PrimesCounter.primeFromRank(8), 19L)
   }
 
-  test("prime from order 9 should be 23") {
-    assertEquals(PrimesCounter.primeFromOrder(9), 23L)
+  test("prime from rank 9 should be 23") {
+    assertEquals(PrimesCounter.primeFromRank(9), 23L)
   }
 
-  test("prime from order 10 should be 29") {
-    assertEquals(PrimesCounter.primeFromOrder(10), 29L)
+  test("prime from rank 10 should be 29") {
+    assertEquals(PrimesCounter.primeFromRank(10), 29L)
   }
 
   test("the 168 th prime number should be 997") {
-    assertEquals(PrimesCounter.primeFromOrder(168), 997L)
+    assertEquals(PrimesCounter.primeFromRank(168), 997L)
   }
 
   test("the 1 229 th prime number should be 9 973") {
-    assertEquals(PrimesCounter.primeFromOrder(1229), 9973L)
+    assertEquals(PrimesCounter.primeFromRank(1229), 9973L)
   }
 
   test("the 7 000 th prime number should be 70 657") {
-    assertEquals(PrimesCounter.primeFromOrder(7000), 70657L)
+    assertEquals(PrimesCounter.primeFromRank(7000), 70657L)
   }
 
   for (i <- 10 to 1000) {
-    val expected = PrimesUtils.findPrimeFromOrder(i)
+    val expected = PrimesUtils.findPrimeFromRank(i)
     test(s"the $i th prime number should be $expected") {
-      assertEquals(PrimesCounter.primeFromOrder(i), expected)
+      assertEquals(PrimesCounter.primeFromRank(i), expected)
     }
   }
-   */
 
   /*
   memoization
@@ -305,47 +304,19 @@ class PrimesCounterTest extends munit.FunSuite {
 
   /*
   Consistency between f(x) and g(x), g(x) beeing the inverse function of f(x)
+  */
 
-  for (i <- 10L to 1000L) {
+  for (i <- 10 to 2357) {
     test(s"consistency for x = $i") {
-      assertEquals(PrimesCounter(PrimesCounter.primeFromOrder(i)), i)
+      assertEquals(PrimesCounter(PrimesCounter.primeFromRank(i)), i.toLong)
     }
   }
 
   test("consistency for x = 105080512") {
     assertEquals(
-      PrimesCounter(PrimesCounter.primeFromOrder(105080512)),
+      PrimesCounter(PrimesCounter.primeFromRank(105080512)),
       105080512L
     )
   }
-   */
-
-  /*
-  test("countMultiplesOf2357") {
-    assertEquals(
-      PrimesCounter.countMultiplesOf2357(Range(1, 700)),
-      540L
-    )
-  }
-
-  for (n <- 1 to 1 * 6300) { // max : 4
-    test("fasterCountMultiplesOf2357 : " + n) {
-      val range = Range(1, n)
-      assertEquals(
-        PrimesCounter.calculateMultiplesOf2357(range),
-        PrimesCounter.countMultiplesOf2357(range)
-      )
-    }
-  }
-
-  for (i <- 1 to 210 * 11 + 1) {
-    test(s"is $i multiple of {2,3,5 or 7} with mod 210") {
-      assertEquals(
-        PrimesCounter.isMultipleOf2357Fast(i),
-        PrimesCounter.isMultipleOf2357(i)
-      )
-    }
-  }
-   */
 
 }
