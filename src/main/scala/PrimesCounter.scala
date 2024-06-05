@@ -17,7 +17,7 @@ object PrimesCounter {
      * This singularity is a symbolic range that is never used in computation
      * Its sole purpose is to explain the next concrete singularity
      */
-    (PrimesCouple(1, 1), 1L),
+    // (PrimesCouple(1, 1), 1L),
 
     /* Between (1 x 1) and (2 x 2) there are two numbers that are :
      *  - multiples of 2, 3, 5 or 7
@@ -43,11 +43,12 @@ object PrimesCounter {
   private val cache = new CacheManager(
     "data.json",
     Long.MinValue,
-    Singularities.map(s => (s._1.asTuple, s._2)): _*
+    Singularities.map(s => (s._1.p1, s._2)): _*
   )
 
+  @inline
   def updateCache(primesCouple: PrimesCouple, n: Long) =
-    cache.update(primesCouple.asTuple, n)
+    cache.update(primesCouple.p1, n)
 
   def clearCache() = {
     cache.clear()
@@ -110,7 +111,7 @@ object PrimesCounter {
 
   @inline
   def memoizedCountOfOtherNonPrimes(primesCouple: PrimesCouple): Long = {
-    val memoizedValue = cache(primesCouple.asTuple)
+    val memoizedValue = cache(primesCouple.p1)
     if (memoizedValue != cache.notYetMemoizedValue) memoizedValue
     else {
       println(primesCouple)
@@ -258,32 +259,17 @@ object PrimesCounter {
     loadCache()
     // return regenerateCache()
 
-    val prime = primeFromRank(args(0).toLong)
-    println(prime)
+    val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
+    val arg1 = if (args.isDefinedAt(1)) args(1).toLong else -1
 
-    // val (start, end) = (args(0).toLong, args(1).toLong)
-    val (start, end) = (1, prime)
-    val partitioning = Partitioning.of(Range(start, end))
-    // println(partitioning.traces)
-    println(PrimesCounter.evaluate(partitioning))
-    // println(getPrimesBetween(start, end).size) // TODO count
-
-    {
-      val before = System.nanoTime;
-      for (i <- 1 to 10) {
-        isPrimeAlternative1(prime)
-      }
-      val elapsedTime = System.nanoTime - before
-      println(elapsedTime / math.pow(10, 9))
-    }
-
-    {
-      val before = System.nanoTime;
-      for (i <- 1 to 10) {
-        isPrimeAlternative2(prime)
-      }
-      val elapsedTime = System.nanoTime - before
-      println(elapsedTime / math.pow(10, 9))
+    if (arg1 == -1)
+      println(s"The prime number of rank ${arg0} is ${primeFromRank(arg0)}")
+    else {
+      val (start, end) = (arg0, arg1)
+      val partitioning = Partitioning.of(Range(start, end))
+      println(
+        s"Between ${arg0} and ${arg1} : ${PrimesCounter.evaluate(partitioning)} primes"
+      )
     }
 
     if (hasUpdate) saveCache()
