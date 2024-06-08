@@ -12,40 +12,27 @@ case object Partitioning {
       val range: Range,
       val polarityHint: Int = 0
   ) {
-
     val isNull: Boolean = this.range == NullRange
-
     lazy val polarity: Int =
       if (range.start > range.end) -1
       else if (range.start < range.end) 1
       else polarityHint
-
     lazy val isNegative = polarity < 0
-
     lazy val unsignedRange =
       if (this.isNegative) this.range.swap else this.range
-
     lazy val capacity: Long =
       if (isNegative) range.start - range.end + 1
       else if (isNull) 0
       else range.end - range.start + 1
-
     lazy val isSingleton = capacity == 1
-
     def setPolarityHint(hint: Int) = copy(polarityHint = hint)
-
     def swap() = copy(range = range.swap, polarityHint = -polarityHint)
-
     private def start(newStart: Long) = copy(range = range.start(newStart))
-
     private def end(newEnd: Long) = copy(range = range.end(newEnd))
-
     def offsetStartBy(offset: Int) =
       start(range.start + offset).setPolarityHint(polarity)
-
     def offsetEndBy(offset: Int) =
       end(range.end + offset).setPolarityHint(polarity)
-
     override def toString: String = if (isNull) "{}" else range.toString
   }
 
@@ -62,31 +49,24 @@ case object Partitioning {
       middle: Middle = NullMiddle,
       right: Side = NullSide
   ) {
-
     def setLeft(newLeft: Side) = copy(left = newLeft)
     def setMiddle(newMiddle: Middle) = copy(middle = newMiddle)
     def setRight(newRight: Side) = copy(right = newRight)
-
     override def toString: String = s"${left} # ${middle} # ${right}"
   }
 
   def splitEdge(edge: Long): (Side, Side) = {
-
     val squareRoot = math.sqrt(edge).toLong
-
     val primeBefore =
       if (squareRoot == 1) 1
       else findPrimeBefore(squareRoot + 1)
-
     val primeAfter =
       if (squareRoot == 2) 3
       else findPrimeAfter(squareRoot - 1)
-
     (
       new Side(primeAfter, Range(edge, primeAfter * primeAfter)),
       new Side(primeBefore, Range(primeBefore * primeBefore, edge))
     )
-
   }
 
   def pass1(state: PartitioningState): PartitioningState = {
@@ -174,7 +154,15 @@ case object Partitioning {
     lazy val state =
       pass6(
         pass5(
-          pass4(pass3(pass2(pass1(new PartitioningState(this.initialRange)))))
+          pass4(
+            pass3(
+              pass2(
+                pass1(
+                  new PartitioningState(this.initialRange)
+                )
+              )
+            )
+          )
         )
       )
 
@@ -237,15 +225,10 @@ case object Partitioning {
   )
 
   def main(args: Array[String]): Unit = {
-    println("==========================================================")
-    println(RangeSingularities)
-    println("==========================================================")
     val (start, end) = (args(0).toLong, args(1).toLong)
     val partitioning = Partitioning.of(Range(start, end))
     println(partitioning.traces)
     println(partitioning)
-    println(PrimesCounter.evaluate(partitioning))
-    println(PrimesUtils.getPrimesBetween(start, end).size)
   }
 
 }

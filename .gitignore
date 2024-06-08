@@ -6,3 +6,4 @@ target
 /TODO.txt
 /.scalafmt.conf
 *.zip
+.scala-build/
