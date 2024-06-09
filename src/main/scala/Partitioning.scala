@@ -1,5 +1,5 @@
 import scala.collection.mutable
-import PrimesUtils._
+import PrimesUtils.{findPrimeBefore, findPrimeAfter, getPrimesBetween}
 
 case object Partitioning {
 
@@ -36,7 +36,7 @@ case object Partitioning {
     override def toString: String = if (isNull) "{}" else range.toString
   }
 
-  // TODO use composition with Range ?
+  // TODO use composition with Range, like as Side ?
   class Middle(val p1: Long, val p2: Long) extends Range((p1 * p1), (p2 * p2)) {
     override def toString: String =
       if (isSingleton) s"{${this.start}}"
@@ -202,8 +202,10 @@ case object Partitioning {
 
   def apply(range: Range): Partitions = Partitioning.of(range)
 
+  // TODO PrimeCounter concern
   val setOfRanges = mutable.Set[Range]()
 
+  // TODO PrimeCounter concern
   for (c <- (1 to 8).combinations(2)) {
     val (start, end) = (c(0), c(1))
     val partitioning = Partitioning.of(Range(start, end))
@@ -215,6 +217,7 @@ case object Partitioning {
     } else setOfRanges.addOne(partitioning.initialRange)
   }
 
+  // TODO PrimeCounter concern
   val RangeSingularities = Map[Range, Int](
     (setOfRanges
       .map(x => {

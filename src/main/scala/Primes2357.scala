@@ -31,7 +31,7 @@ object Primes2357 {
   def divides(n: Long): Boolean = !MapForMultiplesOf2357(n % 210)
 
   @inline
-  def multiplesOf2357(range: Range): Long = { // TODO rename multiplesIn()
+  def numberOfMultiplesIn(range: Range): Long = { // TODO rename multiplesIn()
     var positives = 1L
     for (n <- MapForFastCounting("+")) {
       val (start, end) = range.alignedEdgesOn(n)
@@ -47,7 +47,7 @@ object Primes2357 {
 
   def main(args: Array[String]): Unit = {
     println(Primes2357.MapForFastCounting)
-    println(Primes2357.multiplesOf2357(Range(1, 35)))
+    println(Primes2357.numberOfMultiplesIn(Range(1, 35)))
     println(Primes2357.MapForMultiplesOf2357)
   }
 

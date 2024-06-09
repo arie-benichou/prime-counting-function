@@ -12,7 +12,7 @@ class Primes2357Test extends munit.FunSuite {
 
   test("count multiples of {2, 3, 5, 7} from 1 to 35") {
     assertEquals(
-      Primes2357.multiplesOf2357(Range(1, 35)),
+      Primes2357.numberOfMultiplesIn(Range(1, 35)),
       27L
     )
   }
@@ -20,7 +20,7 @@ class Primes2357Test extends munit.FunSuite {
   for (n <- 34 to 2 by -1) {
     test(s"count multiples of {2, 3, 5, 7} from 1 to $n") {
       assertEquals(
-        Primes2357.multiplesOf2357(Range(1, n)),
+        Primes2357.numberOfMultiplesIn(Range(1, n)),
         PrimesUtils.countMultiplesOf2357(1, n)
       )
     }
@@ -28,7 +28,7 @@ class Primes2357Test extends munit.FunSuite {
 
   test("count multiples of {2, 3, 5, 7} from 1 to 1") {
     assertEquals(
-      Primes2357.multiplesOf2357(Range(1, 1)),
+      Primes2357.numberOfMultiplesIn(Range(1, 1)),
       0L
     )
   }
@@ -37,7 +37,7 @@ class Primes2357Test extends munit.FunSuite {
     for (n <- 36 to 211) {
       val range = Range(1, n)
       assertEquals(
-        Primes2357.multiplesOf2357(range),
+        Primes2357.numberOfMultiplesIn(range),
         PrimesUtils.countMultiplesOf2357(1, n)
       )
     }
@@ -46,7 +46,7 @@ class Primes2357Test extends munit.FunSuite {
   for (n <- 1 to 211) {
     test(s"count multiples of {2, 3, 5, 7} in singleton {$n} : [$n, $n]") {
       assertEquals(
-        Primes2357.multiplesOf2357(Range(n, n)),
+        Primes2357.numberOfMultiplesIn(Range(n, n)),
         PrimesUtils.countMultiplesOf2357(n, n)
       )
     }

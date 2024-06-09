@@ -3,12 +3,13 @@ import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.annotation.tailrec
 
 import PrimesUtils.{isPrime, findPrimeBefore, findPrimeAfter}
-import Primes2357.{multiplesOf2357, doesNotdivide}
-import Partitioning.{of, Partitions, Side, Middle, RangeSingularities}
+import Partitioning.{Partitions, Side, Middle, RangeSingularities}
 
 object PrimesCounter {
 
   private val AvailableProcessors = Runtime.getRuntime.availableProcessors
+
+  private val FifthPrime = 11L
 
   private val Singularities = Seq(
     /* Between (1 x 1) and (1 x 1) there is one number that is :
@@ -19,7 +20,7 @@ object PrimesCounter {
      * we need to handle this special case or "singularity"
      * by treating 1 as an "other non prime", like we would do for
      * any multiples of 11, 13, 17, 19 and so on
-     * This singularity is a symbolic range that is never used in computation
+     * This singularity is a symbolic range that should not be used in computation
      * Its sole purpose is to explain the next concrete singularity
      */
     // (PrimesCouple(1, 1), 1L),
@@ -52,7 +53,7 @@ object PrimesCounter {
   )
 
   @inline
-  def updateCache(primesCouple: PrimesCouple, n: Long) =
+  def updateCache(primesCouple: PrimesCouple, n: Long): Long =
     cache.update(primesCouple.p1, n)
 
   def clearCache() = {
@@ -80,6 +81,10 @@ object PrimesCounter {
     saveCache()
   }
 
+  /*
+   * TODO : pagination
+   * when n > Int.MaxValue
+   */
   def loadCache(): Long = {
     println(
       s"${Console.GREEN}Loading cache from ${cache.filename}${Console.RESET}"
@@ -91,6 +96,11 @@ object PrimesCounter {
     n
   }
 
+  /*
+   * TODO : pagination
+   * when range.capacity > Int.MaxValue
+   * by using Array Dimensions
+   */
   @inline
   private def countOtherNonPrimes(range: Range, maxPrimeDivisor: Long): Long = {
     val array = new Array[Boolean](range.capacity.toInt)
@@ -99,12 +109,12 @@ object PrimesCounter {
     case class Task(range: Range, prime: Long) extends Runnable {
       lazy val (start, end) = range.alignedEdgesOn(prime)
       def run =
-        for (x <- start to end by prime if doesNotdivide(x)) mark(x)
+        for (x <- start to end by prime if Primes2357.doesNotdivide(x)) mark(x)
     }
     val executorService: ExecutorService =
       Executors.newFixedThreadPool(AvailableProcessors)
     var primeDivisor = maxPrimeDivisor
-    while (primeDivisor >= 11) {
+    while (primeDivisor >= FifthPrime) {
       executorService.submit(new Task(range, primeDivisor))
       primeDivisor = findPrimeBefore(primeDivisor)
     }
@@ -121,7 +131,8 @@ object PrimesCounter {
   private def calculateNumberOfPrimes(
       range: Range,
       numberOfOtherNonPrimes: Long
-  ): Long = range.capacity - (multiplesOf2357(range) + numberOfOtherNonPrimes)
+  ): Long = range.capacity -
+    (Primes2357.numberOfMultiplesIn(range) + numberOfOtherNonPrimes)
 
   @inline
   private def memoizedCountOfOtherNonPrimes(
@@ -147,8 +158,7 @@ object PrimesCounter {
           PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
         numberOfOtherNonPrimes += memoizedCountOfOtherNonPrimes(primesCouple)
       }
-      // TODO extract constant
-      if (primesCouple.p2 >= 11) numberOfOtherNonPrimes += 1
+      if (primesCouple.p2 >= FifthPrime) numberOfOtherNonPrimes += 1
       calculateNumberOfPrimes(middle, numberOfOtherNonPrimes)
     }
   }
@@ -177,14 +187,34 @@ object PrimesCounter {
   }
 
   def apply(start: Long, end: Long): Long = {
-    if (start < 0) throw new Exception(s"$start is not a valid integer !")
-    if (end < 0) throw new Exception(s"$end is not a valid integer !")
+    if (start < 0)
+      throw new Exception(s"$start is not a valid integer !")
+    if (end < 0)
+      throw new Exception(s"$end is not a valid integer !")
     if (start > end)
       throw new Exception(s"[$start ; $end] is not a valid range !")
-    evaluate(of(Range(start, end)))
+    evaluate(Partitioning.of(Range(start, end)))
   }
 
   def apply(end: Long): Long = apply(1, end)
+
+  @inline
+  private def findPrime(prime: Long, direction: Long): Long =
+    if (direction > 0) findPrimeAfter(prime) else findPrimeBefore(prime)
+
+  @inline
+  @tailrec
+  private def after(prime: Long, delta: Long): Long = {
+    if (delta == 0) prime
+    else after(findPrime(prime, 1), delta - 1)
+  }
+
+  @inline
+  @tailrec
+  private def before(prime: Long, delta: Long): Long = {
+    if (delta == 0) prime
+    else before(findPrime(prime, -1), delta + 1)
+  }
 
   def primeFromRank(rank: Long): Long = {
 
@@ -197,52 +227,35 @@ object PrimesCounter {
     if (rank == 4) return 7
 
     var primesCouple = PrimesCouple(1, 2)
-    var numberOfOtherNonPrimes = memoizedCountOfOtherNonPrimes(primesCouple)
-    var numberOfPrimesInthisRange = calculateNumberOfPrimes(
-      primesCouple.spanningRange,
-      numberOfOtherNonPrimes
-    )
-    var numberOfPrimes = numberOfPrimesInthisRange
-    while (numberOfPrimes < rank) {
-      primesCouple =
-        PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
-      val memo = memoizedCountOfOtherNonPrimes(primesCouple)
-      numberOfOtherNonPrimes += memo
+    var numberOfOtherNonPrimes = 0L
+    var numberOfPrimesInthisRange = 0L
+    var numberOfPrimes = 0L
+
+    @inline
+    def applyWithLocalSideEffect(primesCouple: PrimesCouple) = {
+      val memoized = memoizedCountOfOtherNonPrimes(primesCouple)
+      numberOfOtherNonPrimes += memoized
       numberOfPrimesInthisRange = calculateNumberOfPrimes(
         primesCouple.spanningRange,
-        memo
+        memoized
       )
       numberOfPrimes += numberOfPrimesInthisRange
     }
-    val average = math.log(
-      primesCouple.spanningRange.start + primesCouple.spanningRange.capacity / 2
-    )
+
+    applyWithLocalSideEffect(primesCouple)
+    while (numberOfPrimes < rank) {
+      primesCouple =
+        PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
+      applyWithLocalSideEffect(primesCouple)
+    }
+
+    val range = primesCouple.spanningRange
+    val average = math.log(range.start + range.capacity / 2)
     val diff = numberOfPrimesInthisRange - (numberOfPrimes - rank)
-    val estimate = (primesCouple.spanningRange.start + average * diff).toLong
+    val estimate = (range.start + average * diff).toLong
     val prime = if (isPrime(estimate)) estimate else findPrimeAfter(estimate)
-    val partitioning =
-      of(Range(primesCouple.spanningRange.start, prime))
+    val partitioning = Partitioning.of(Range(range.start, prime))
     val delta = diff - evaluate(partitioning)
-
-    @inline
-    def findPrime(prime: Long, direction: Long): Long = {
-      if (direction > 0) findPrimeAfter(prime)
-      else findPrimeBefore(prime)
-    }
-
-    @inline
-    @tailrec
-    def after(prime: Long, delta: Long): Long = {
-      if (delta == 0) prime
-      else after(findPrime(prime, 1), delta - 1)
-    }
-
-    @inline
-    @tailrec
-    def before(prime: Long, delta: Long): Long = {
-      if (delta == 0) prime
-      else before(findPrime(prime, -1), delta + 1)
-    }
 
     if (delta < 0) before(prime, delta)
     else if (delta > 0) after(prime, delta)
@@ -272,7 +285,7 @@ object PrimesCounter {
       println(s"The prime number of rank ${arg0} is ${primeFromRank(arg0)}")
     else {
       val (start, end) = (arg0, arg1)
-      val partitioning = of(Range(start, end))
+      val partitioning = Partitioning.of(Range(start, end))
       println(
         s"Between ${arg0} and ${arg1} : ${evaluate(partitioning)} primes"
       )
