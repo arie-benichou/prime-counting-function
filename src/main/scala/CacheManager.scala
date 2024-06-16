@@ -1,38 +1,92 @@
 import scala.collection.mutable
 
+import upickle.default._
+
 case class CacheManager(
-    filename: String,
     notYetMemoizedValue: Long,
     initialData: (Long, Long)*
-) {
+) extends Iterable[Long] {
 
-  var isLoaded = false
-
-  private val map: mutable.Map[Long, Long] =
+  private val map: mutable.SortedMap[Long, Long] =
     mutable
-      .Map[Long, Long](initialData: _*)
+      .SortedMap[Long, Long](initialData: _*)
       .withDefaultValue(notYetMemoizedValue)
 
-  def load(): Long = {
-    if (!this.isLoaded && os.isFile(os.pwd / filename)) {
-      val json = ujson.read(os.read(os.pwd / filename))
-      val cachedResults =
-        upickle.default.read[mutable.Map[Long, Long]](json)
+  def clear() = {
+    map.clear()
+    map.addAll(initialData)
+    this
+  }
+
+  /*
+   * TODO refactoring
+   * TODO : pagination
+   * when n > Int.MaxValue
+   */
+  def loadBinary(filename: String): Long = {
+    if (os.isFile(os.pwd / filename)) {
+      println(
+        s"${Console.GREEN}Loading cache from ${filename}${Console.RESET}"
+      )
+      val binary = os.read.bytes(os.pwd / filename)
+      val cachedResults = readBinary[mutable.SortedMap[Long, Long]](binary)
       val size = cachedResults.size
       var i = 0
       for (cachedResult <- cachedResults) {
         i += 1
         map.addOne(cachedResult)
       }
-      this.isLoaded = true
+      println(
+        s"${Console.GREEN}$i prime couples loaded from cache${Console.RESET}"
+      )
       i
     } else 0
   }
 
-  def save() = {
+  /*
+   * TODO refactoring
+   * TODO : pagination
+   * when n > Int.MaxValue
+   */
+  def loadJson(filename: String): Long = {
+    if (os.isFile(os.pwd / filename)) {
+      println(
+        s"${Console.GREEN}Loading cache from ${filename}${Console.RESET}"
+      )
+      val json = ujson.read(os.read(os.pwd / filename))
+      val cachedResults = read[mutable.SortedMap[Long, Long]](json)
+      val size = cachedResults.size
+      var i = 0
+      for (cachedResult <- cachedResults) {
+        i += 1
+        map.addOne(cachedResult)
+      }
+      println(
+        s"${Console.GREEN}$i prime couples loaded from cache${Console.RESET}"
+      )
+      i
+    } else 0
+  }
+
+  // TODO refactoring
+  def saveBinary(filename: String) = {
     os.write.over(
       os.pwd / filename,
-      upickle.default.write(mutable.SortedMap[Long, Long]().addAll(map))
+      upickle.default.writeBinary(map)
+    )
+    println(
+      s"${Console.GREEN}cache is being saved in ${filename}${Console.RESET}"
+    )
+  }
+
+  // TODO refactoring
+  def saveJson(filename: String) = {
+    os.write.over(
+      os.pwd / filename,
+      upickle.default.write(map)
+    )
+    println(
+      s"${Console.GREEN}cache is being saved in ${filename}${Console.RESET}"
     )
   }
 
@@ -45,6 +99,7 @@ case class CacheManager(
   @inline
   def apply(prime: Long): Long = map(prime)
 
-  def clear() = map.clear()
+  def iterator =
+    map.keySet.iterator
 
 }

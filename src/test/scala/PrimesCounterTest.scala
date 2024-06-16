@@ -175,7 +175,6 @@ class PrimesCounterTest extends munit.FunSuite {
     assertEquals(PrimesCounter(1000000), 78498L)
   }
 
-  
   for (n <- 1 to 7 * 7 + 1) {
     val end = 13 * 13 + 1
     for (i <- 1L to end) {
@@ -189,7 +188,7 @@ class PrimesCounterTest extends munit.FunSuite {
 
   /*
   correctness tests for prime from rank
-  */
+   */
 
   test("prime from rank < 0 should rise exception") {
     intercept[Exception] {
@@ -266,12 +265,16 @@ class PrimesCounterTest extends munit.FunSuite {
   memoization
    */
 
-  test("number of primes couples ranges loaded from cache should be > 0") {
-    assert(PrimesCounter.loadCache() > 0)
+  test(
+    "number of primes couples ranges loaded from json encoded file should be > 0"
+  ) {
+    assert(PrimesCounter.cache.loadJson("data.json") > 0)
   }
 
-  test("cache already loaded once should not load one more time") {
-    assertEquals(PrimesCounter.loadCache(), 0L)
+  test(
+    "number of primes couples ranges loaded from binary encoded file should be > 0"
+  ) {
+    assert(PrimesCounter.cache.loadBinary("data.bin") > 0)
   }
 
   test("number of primes until 10 000 000 should be 664 579") {
@@ -304,7 +307,7 @@ class PrimesCounterTest extends munit.FunSuite {
 
   /*
   Consistency between f(x) and g(x), g(x) beeing the inverse function of f(x)
-  */
+   */
 
   for (i <- 10 to 2357) {
     test(s"consistency for x = $i") {
