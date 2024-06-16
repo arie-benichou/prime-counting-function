@@ -1,1 +1,0 @@
-gcloud cloud-shell ssh
