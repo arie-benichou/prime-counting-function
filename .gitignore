@@ -7,3 +7,7 @@ target
 /.scalafmt.conf
 *.zip
 .scala-build/
+cloudShell.sh
+copyData.sh
+src/main/scala/Migration.scala
+src/main/scala/P1P2P3.scala
