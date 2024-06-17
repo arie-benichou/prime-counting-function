@@ -265,17 +265,20 @@ class PrimesCounterTest extends munit.FunSuite {
   memoization
    */
 
+  // TODO use test/resource/
   test(
     "number of primes couples ranges loaded from json encoded file should be > 0"
   ) {
-    assert(PrimesCounter.cache.loadJson("data.json") > 0)
+    assert(PrimesCounter.cache.loadJson("data-test.json") > 0)
   }
 
+  // TODO use test/resource/
   test(
     "number of primes couples ranges loaded from binary encoded file should be > 0"
   ) {
-    assert(PrimesCounter.cache.loadBinary("data.bin") > 0)
+    assert(PrimesCounter.cache.loadBinary("data-test.bin") > 0)
   }
+
 
   test("number of primes until 10 000 000 should be 664 579") {
     assertEquals(PrimesCounter(10000000), 664579L)
