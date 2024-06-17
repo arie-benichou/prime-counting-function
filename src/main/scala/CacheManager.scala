@@ -37,7 +37,7 @@ case class CacheManager(
         map.addOne(cachedResult)
       }
       println(
-        s"${Console.GREEN}$i prime couples loaded from cache${Console.RESET}"
+        s"${Console.GREEN}$i primes loaded from cache${Console.RESET}"
       )
       i
     } else 0
@@ -62,7 +62,7 @@ case class CacheManager(
         map.addOne(cachedResult)
       }
       println(
-        s"${Console.GREEN}$i prime couples loaded from cache${Console.RESET}"
+        s"${Console.GREEN}$i primes loaded from cache${Console.RESET}"
       )
       i
     } else 0
@@ -99,7 +99,6 @@ case class CacheManager(
   @inline
   def apply(prime: Long): Long = map(prime)
 
-  def iterator =
-    map.keySet.iterator
+  def iterator = map.keySet.iterator
 
 }

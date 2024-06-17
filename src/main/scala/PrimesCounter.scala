@@ -4,58 +4,54 @@ import scala.annotation.tailrec
 
 import PrimesUtils.{isPrime, findPrimeBefore, findPrimeAfter}
 import Partitioning.{Partitions, Side, Middle, RangeSingularities}
+import BitSet._
 
 object PrimesCounter {
 
-  private val FifthPrime = 11L
-
-  private val AvailableProcessors = Runtime.getRuntime.availableProcessors
-
+  val FifthPrime = 11L
+  val AvailableProcessors = Runtime.getRuntime.availableProcessors
   val Singularities = Seq(
     (PrimesCouple(1, 2), 2L),
     (PrimesCouple(2, 3), 2L)
   )
-
-  private var hasUpdate = false
 
   val cache = new CacheManager(
     Long.MinValue,
     Singularities.map(s => (s._1.p1, s._2)): _*
   )
 
+  private var hasUpdate = false
+
   /*
    * TODO : pagination
    * when n > Int.MaxValue
    */
-  private def countOtherNonPrimes(range: Range, maxPrimeDivisor: Long): Long = {
-
+  private def countOtherNonPrimes(
+      range: Range,
+      maxPrimeDivisor: Long
+  ): Long = {
     if (range.capacity >= Int.MaxValue)
       throw new Exception("Array indexing limit reached")
-
-    val data = new Array[Boolean](range.capacity.toInt)
-
+    val data = new BitSet(range.capacity.toInt)
     @inline
-    def mark(onp: Long) = data((onp % range.start).toInt) = true
-
+    def mark(onp: Long) = data.set((onp % range.start).toInt)
     case class Task(range: Range, prime: Long) extends Runnable {
       lazy val (start, end) = range.alignedEdgesOn(prime)
-      def run =
-        for (x <- start to end by prime if Primes2357.doesNotdivide(x)) mark(x)
+      def run = for (x <- start to end by prime if Primes2357.doesNotdivide(x))
+        data synchronized {
+          mark(x)
+        }
     }
-
     val executorService: ExecutorService =
       Executors.newFixedThreadPool(AvailableProcessors)
-
     var primeDivisor = maxPrimeDivisor
     while (primeDivisor >= FifthPrime) {
       executorService.submit(new Task(range, primeDivisor))
       primeDivisor = findPrimeBefore(primeDivisor)
     }
-
     executorService.shutdown()
     executorService.awaitTermination(1, TimeUnit.DAYS)
-
-    data.count(_ == true)
+    data.cardinality
   }
 
   @inline
@@ -70,7 +66,7 @@ object PrimesCounter {
     (Primes2357.numberOfMultiplesIn(range) + numberOfOtherNonPrimes)
 
   @inline
-  def updateCache(primesCouple: PrimesCouple, n: Long): Long =
+  private def updateCache(primesCouple: PrimesCouple, n: Long): Long =
     cache.update(primesCouple.p1, n)
 
   private def memoizedNumberOfPrimes(primesCouple: PrimesCouple): Long = {
@@ -134,7 +130,7 @@ object PrimesCounter {
     evaluate(Partitioning.of(Range(start, end)))
   }
 
-  // TODO ? prime from rank with apply(x)
+  // TODO prime from rank with apply(x) ?
   def apply(end: Long): Long = apply(1, end)
 
   def primeFromRank(rank: Long): Long = {
@@ -187,17 +183,10 @@ object PrimesCounter {
     val partitioning = Partitioning.of(Range(range.start, prime))
     val delta = diff - evaluate(partitioning)
 
-    // println(s"estimate : $tmp")
-    // println(s"delta with rank : $delta")
+    if (delta < 0) before(prime, delta)
+    else if (delta > 0) after(prime, delta)
+    else prime
 
-    val primeFromRank =
-      if (delta < 0) before(prime, delta)
-      else if (delta > 0) after(prime, delta)
-      else prime
-
-    // println(s"delta with original estimate : ${primeFromRank - estimate}")
-
-    primeFromRank
   }
 
   // TODO R&D with this alternative
@@ -212,7 +201,12 @@ object PrimesCounter {
 
   def main(args: Array[String]): Unit = {
 
-    cache.loadBinary("data.bin")
+    /*
+     * TODO : pagination
+     * when number of cache entries > Int.MaxValue
+     */
+    val cacheFileName = "data.bin"
+    cache.loadBinary(cacheFileName)
     // cache.clear()
 
     val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
@@ -236,7 +230,7 @@ object PrimesCounter {
       println(s"The prime number of rank ${rank} is ${prime}")
     }
 
-    if (hasUpdate) cache.saveBinary("data-new.bin")
+    // if (hasUpdate) cache.saveBinary(cacheFileName)
 
   }
 
