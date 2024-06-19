@@ -1,15 +1,23 @@
-import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
+import java.util.concurrent.{
+  Callable,
+  ExecutorCompletionService,
+  Executors,
+  Future,
+  TimeUnit
+}
 
 import scala.annotation.tailrec
 
 import PrimesUtils.{isPrime, findPrimeBefore, findPrimeAfter}
 import Partitioning.{Partitions, Side, Middle, RangeSingularities}
-import BitSet._
+import DistinctComposites._
 
 object PrimesCounter {
 
   val FifthPrime = 11L
+
   val AvailableProcessors = Runtime.getRuntime.availableProcessors
+
   val Singularities = Seq(
     (PrimesCouple(1, 2), 2L),
     (PrimesCouple(2, 3), 2L)
@@ -30,27 +38,49 @@ object PrimesCounter {
       range: Range,
       maxPrimeDivisor: Long
   ): Long = {
-    if (range.capacity >= Int.MaxValue)
-      throw new Exception("Array indexing limit reached")
-    val data = new BitSet(range.capacity.toInt)
+
+    val data = new DistinctComposites(range.capacity)
+
     @inline
-    def mark(onp: Long) = data.set((onp % range.start).toInt)
-    case class Task(range: Range, prime: Long) extends Runnable {
-      lazy val (start, end) = range.alignedEdgesOn(prime)
-      def run = for (x <- start to end by prime if Primes2357.doesNotdivide(x))
-        data synchronized {
-          mark(x)
-        }
+    def mark(onp: Long) = {
+      val index = (onp % range.start).toInt
+      data synchronized {
+        data.set(index)
+      }
     }
-    val executorService: ExecutorService =
-      Executors.newFixedThreadPool(AvailableProcessors)
+
+    case class Task(range: Range, prime: Long) extends Callable[Unit] {
+      private lazy val (start, end) = range.alignedEdgesOn(prime)
+      def call = for (
+        x <- start to end by prime
+        if Primes2357.doesNotdivide(x)
+      ) mark(x)
+    }
+
+    val executorService = Executors.newFixedThreadPool(AvailableProcessors)
+    val completionService = new ExecutorCompletionService[Unit](executorService)
+
+    val chunkSize = AvailableProcessors * 3 * 4 * 5 * 6 * 7
+
+    @inline
+    def awaitOneResult() = completionService.take().get()
+
+    var i = 0
     var primeDivisor = maxPrimeDivisor
     while (primeDivisor >= FifthPrime) {
-      executorService.submit(new Task(range, primeDivisor))
+      completionService.submit(new Task(range, primeDivisor))
+      i += 1
+      if (i % chunkSize == 0) {
+        (1 to chunkSize).foreach(_ => awaitOneResult)
+        i = 0
+      }
       primeDivisor = findPrimeBefore(primeDivisor)
     }
+    // println(i)
+
     executorService.shutdown()
     executorService.awaitTermination(1, TimeUnit.DAYS)
+
     data.cardinality
   }
 
@@ -205,8 +235,10 @@ object PrimesCounter {
      * TODO : pagination
      * when number of cache entries > Int.MaxValue
      */
-    val cacheFileName = "data.bin"
-    cache.loadBinary(cacheFileName)
+    val inputCacheFileName = "data.bin"
+    val outputCacheFileName = inputCacheFileName
+
+    cache.loadBinary(inputCacheFileName)
     // cache.clear()
 
     val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
@@ -230,7 +262,7 @@ object PrimesCounter {
       println(s"The prime number of rank ${rank} is ${prime}")
     }
 
-    // if (hasUpdate) cache.saveBinary(cacheFileName)
+    if (hasUpdate) cache.saveBinary(outputCacheFileName)
 
   }
 
