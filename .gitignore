@@ -11,3 +11,5 @@ cloudShell.sh
 copyData.sh
 src/main/scala/Migration.scala
 src/main/scala/P1P2P3.scala
+src/main/scala/Completion.scala
+data.bin.old
