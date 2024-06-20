@@ -1,12 +1,8 @@
-import java.util.concurrent.{
-  Callable,
-  ExecutorCompletionService,
-  Executors,
-  Future,
-  TimeUnit
-}
-
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.{ExecutionContext, Future, Await}
+import scala.concurrent.duration._
+// import scala.util.{Failure, Success}
 
 import PrimesUtils.{isPrime, findPrimeBefore, findPrimeAfter}
 import Partitioning.{Partitions, Side, Middle, RangeSingularities}
@@ -14,7 +10,7 @@ import DistinctComposites._
 
 object PrimesCounter {
 
-  val FifthPrime = 11L
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
   val AvailableProcessors = Runtime.getRuntime.availableProcessors
 
@@ -22,6 +18,8 @@ object PrimesCounter {
     (PrimesCouple(1, 2), 2L),
     (PrimesCouple(2, 3), 2L)
   )
+
+  val FifthPrime = 11L
 
   val cache = new CacheManager(
     Long.MinValue,
@@ -43,43 +41,38 @@ object PrimesCounter {
 
     @inline
     def mark(onp: Long) = {
-      val index = (onp % range.start).toInt
+      val index = (onp % range.start)
       data synchronized {
         data.set(index)
       }
     }
 
-    case class Task(range: Range, prime: Long) extends Callable[Unit] {
-      private lazy val (start, end) = range.alignedEdgesOn(prime)
-      def call = for (
-        x <- start to end by prime
-        if Primes2357.doesNotdivide(x)
-      ) mark(x)
-    }
+    @inline
+    def submitTask(range: Range, prime: Long): Future[Unit] =
+      Future {
+        val (start, end) = range.alignedEdgesOn(prime)
+        for (x <- start to end by prime if Primes2357.doesNotdivide(x)) mark(x)
+      }
 
-    val executorService = Executors.newFixedThreadPool(AvailableProcessors)
-    val completionService = new ExecutorCompletionService[Unit](executorService)
-
-    val chunkSize = AvailableProcessors * 3 * 4 * 5 * 6 * 7
+    val chunkSize = AvailableProcessors * 2 * 3 * 4 * 5 * 6
 
     @inline
-    def awaitOneResult() = completionService.take().get()
+    def awaitOneResult(future: Future[Unit]): Unit =
+      Await.ready(future, Duration.Inf).value.get
 
-    var i = 0
+    val pendingFutures = ListBuffer[Future[Unit]]()
     var primeDivisor = maxPrimeDivisor
+
     while (primeDivisor >= FifthPrime) {
-      completionService.submit(new Task(range, primeDivisor))
-      i += 1
-      if (i % chunkSize == 0) {
-        (1 to chunkSize).foreach(_ => awaitOneResult)
-        i = 0
+      pendingFutures += submitTask(range, primeDivisor)
+      if (pendingFutures.size % chunkSize == 0) {
+        pendingFutures.foreach(awaitOneResult)
+        pendingFutures.clear()
       }
       primeDivisor = findPrimeBefore(primeDivisor)
     }
-    // println(i)
 
-    executorService.shutdown()
-    executorService.awaitTermination(1, TimeUnit.DAYS)
+    if (pendingFutures.nonEmpty) pendingFutures.foreach(awaitOneResult)
 
     data.cardinality
   }
@@ -220,14 +213,12 @@ object PrimesCounter {
   }
 
   // TODO R&D with this alternative
-  def isPrimeAlternative1(n: Long) = {
+  def isPrimeAlternative1(n: Long) =
     PrimesCounter(n) - PrimesCounter(n - 1) == 1
-  }
 
   // TODO R&D with this alternative
-  def isPrimeAlternative2(n: Long) = {
+  def isPrimeAlternative2(n: Long) =
     primeFromRank(PrimesCounter(n)) == n
-  }
 
   def main(args: Array[String]): Unit = {
 
