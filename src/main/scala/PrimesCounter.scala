@@ -55,7 +55,7 @@ object PrimesCounter {
         for (x <- start to end by prime if Primes2357.doesNotdivide(x)) mark(x)
       }
 
-    val chunkSize = AvailableProcessors * 1 * 3 * 4 * 5 * 6
+    val chunkSize = AvailableProcessors * 2 * 1 * 4 * 5 * 6
 
     @inline
     def awaitOneResult(future: Future[Unit]): Unit =
@@ -130,7 +130,7 @@ object PrimesCounter {
           (pc.p1, memoizedNumberOfPrimes(pc))
         }
 
-      val chunkSize = AvailableProcessors / 2 
+      val chunkSize = AvailableProcessors * 3 
 
       @inline
       def awaitOneResult(future: Future[(Long, Long)]): (Long, Long) = {
