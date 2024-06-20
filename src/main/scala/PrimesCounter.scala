@@ -10,6 +10,7 @@ import DistinctComposites._
 
 object PrimesCounter {
 
+  // TODO ? use a custom ExecutionContext
   implicit val ec: ExecutionContext = ExecutionContext.global
 
   val AvailableProcessors = Runtime.getRuntime.availableProcessors
@@ -30,7 +31,7 @@ object PrimesCounter {
 
   /*
    * TODO : pagination
-   * when n > Int.MaxValue
+   * when range.capacity > 137 438 953 408
    */
   private def countOtherNonPrimes(
       range: Range,
@@ -54,7 +55,7 @@ object PrimesCounter {
         for (x <- start to end by prime if Primes2357.doesNotdivide(x)) mark(x)
       }
 
-    val chunkSize = AvailableProcessors * 2 * 3 * 4 * 5 * 6
+    val chunkSize = AvailableProcessors * 1 * 3 * 4 * 5 * 6
 
     @inline
     def awaitOneResult(future: Future[Unit]): Unit =
@@ -92,8 +93,14 @@ object PrimesCounter {
   private def updateCache(primesCouple: PrimesCouple, n: Long): Long =
     cache.update(primesCouple.p1, n)
 
+  // TODO add synchronized blocks or use a concurrent map
   private def memoizedNumberOfPrimes(primesCouple: PrimesCouple): Long = {
-    val memoizedValue = cache(primesCouple.p1)
+
+    val memoizedValue =
+      // cache.map synchronized {
+      cache(primesCouple.p1)
+    // }
+
     if (memoizedValue != cache.notYetMemoizedValue) memoizedValue
     else {
       hasUpdate = true
@@ -103,20 +110,61 @@ object PrimesCounter {
         numberOfOtherNonPrimes
       )
       println(s"$primesCouple -> $numberOfOtherNonPrimes -> $numberOfPrimes")
+      // cache.map synchronized {
       updateCache(primesCouple, numberOfPrimes)
+      // }
     }
   }
 
+  /*
+   * TODO grid computing
+   */
   private def evaluate(middle: Middle): Long = {
     if (middle.isSingleton) 0
     else {
+
+      @inline
+      def submitTask(pc: PrimesCouple): Future[(Long, Long)] =
+        Future {
+          // Thread.sleep(2000)
+          (pc.p1, memoizedNumberOfPrimes(pc))
+        }
+
+      val chunkSize = AvailableProcessors / 2 
+
+      @inline
+      def awaitOneResult(future: Future[(Long, Long)]): (Long, Long) = {
+        Await.ready(future, Duration.Inf).value.get.getOrElse((0L, 0L))
+      }
+
+      val pendingFutures = ListBuffer[Future[(Long, Long)]]()
+
+      // TODO
       var primesCouple = PrimesCouple(middle.p1, findPrimeAfter(middle.p1))
       var numberOfPrimes = memoizedNumberOfPrimes(primesCouple)
+
+      // println("=================================")
       while (primesCouple.p2 < middle.p2) {
         primesCouple =
           PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
-        numberOfPrimes += memoizedNumberOfPrimes(primesCouple)
+        pendingFutures += submitTask(primesCouple)
+        // Thread.sleep(250)
+        if (pendingFutures.size == chunkSize) {
+          // println("=================================")
+          pendingFutures.foreach(x => {
+            val (p1, nop) = awaitOneResult(x)
+            numberOfPrimes += nop
+          })
+          pendingFutures.clear()
+          // println("=================================")
+        }
       }
+      if (pendingFutures.nonEmpty)
+        pendingFutures.foreach(x => {
+          val (p1, nop) = awaitOneResult(x)
+          numberOfPrimes += nop
+        })
+      // println("=================================")
       numberOfPrimes
     }
   }
@@ -144,12 +192,9 @@ object PrimesCounter {
   }
 
   def apply(start: Long, end: Long): Long = {
-    if (start < 0)
-      throw new Exception(s"$start is not a valid integer !")
-    if (end < 0)
-      throw new Exception(s"$end is not a valid integer !")
-    if (start > end)
-      throw new Exception(s"[$start ; $end] is not a valid range !")
+    assert(start >= 0, s"$start is not a valid integer !")
+    assert(end >= 0, s"$end is not a valid integer !")
+    assert(start <= end, s"[$start ; $end] is not a valid range !")
     evaluate(Partitioning.of(Range(start, end)))
   }
 
@@ -157,9 +202,8 @@ object PrimesCounter {
   def apply(end: Long): Long = apply(1, end)
 
   def primeFromRank(rank: Long): Long = {
-
-    if (rank < 0) throw new Exception(s"$rank is not a valid integer !")
-    if (rank == 0) throw new Exception("rank 0 is not defined.")
+    assert(rank > 0, s"$rank is not a valid integer !")
+    assert(rank != 0, "rank 0 is not defined.") // could return 1 ?
 
     if (rank == 1) return 2
     if (rank == 2) return 3

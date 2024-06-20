@@ -5,7 +5,7 @@ class PrimesCounterTest extends munit.FunSuite {
    */
 
   test("number of primes before 0 should rise exception") {
-    intercept[Exception] {
+    intercept[AssertionError] {
       PrimesCounter(-1)
     }
   }
@@ -191,13 +191,13 @@ class PrimesCounterTest extends munit.FunSuite {
    */
 
   test("prime from rank < 0 should rise exception") {
-    intercept[Exception] {
+    intercept[AssertionError] {
       PrimesCounter.primeFromRank(-1)
     }
   }
 
   test("prime from rank 0 should rise exception") {
-    intercept[Exception] {
+    intercept[AssertionError] {
       PrimesCounter.primeFromRank(0)
     }
   }
