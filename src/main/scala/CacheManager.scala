@@ -7,7 +7,8 @@ case class CacheManager(
     initialData: (Long, Long)*
 ) extends Iterable[Long] {
 
-  private val map: mutable.SortedMap[Long, Long] =
+  // private 
+  val map: mutable.SortedMap[Long, Long] =
     mutable
       .SortedMap[Long, Long](initialData: _*)
       .withDefaultValue(notYetMemoizedValue)

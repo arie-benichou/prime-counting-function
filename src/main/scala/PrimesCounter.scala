@@ -10,7 +10,7 @@ import DistinctComposites._
 
 object PrimesCounter {
 
-  // TODO ? use a custom ExecutionContext
+  // TODO use a custom ExecutionContext
   implicit val ec: ExecutionContext = ExecutionContext.global
 
   val AvailableProcessors = Runtime.getRuntime.availableProcessors
@@ -30,7 +30,7 @@ object PrimesCounter {
   private var hasUpdate = false
 
   /*
-   * TODO : pagination
+   * TODO pagination
    * when range.capacity > 137 438 953 408
    */
   private def countOtherNonPrimes(
@@ -49,31 +49,32 @@ object PrimesCounter {
     }
 
     @inline
-    def submitTask(range: Range, prime: Long): Future[Unit] =
-      Future {
+    def submitTask(range: Range, prime: Long) =
+      Future[Unit] {
         val (start, end) = range.alignedEdgesOn(prime)
         for (x <- start to end by prime if Primes2357.doesNotdivide(x)) mark(x)
       }
 
-    val chunkSize = AvailableProcessors * 2 * 1 * 4 * 5 * 6
-
-    @inline
-    def awaitOneResult(future: Future[Unit]): Unit =
-      Await.ready(future, Duration.Inf).value.get
+    val chunkSize = AvailableProcessors * 2000
 
     val pendingFutures = ListBuffer[Future[Unit]]()
+
+    @inline
+    def waitForCompletionOfPendingFutures() = {
+      val combinedFuture = Future.sequence(pendingFutures.toSeq)
+      Await.result(combinedFuture, Duration.Inf)
+      pendingFutures.clear()
+    }
+
     var primeDivisor = maxPrimeDivisor
 
     while (primeDivisor >= FifthPrime) {
       pendingFutures += submitTask(range, primeDivisor)
-      if (pendingFutures.size % chunkSize == 0) {
-        pendingFutures.foreach(awaitOneResult)
-        pendingFutures.clear()
-      }
+      if (pendingFutures.size % chunkSize == 0) waitForCompletionOfPendingFutures
       primeDivisor = findPrimeBefore(primeDivisor)
     }
 
-    if (pendingFutures.nonEmpty) pendingFutures.foreach(awaitOneResult)
+    if (pendingFutures.nonEmpty) waitForCompletionOfPendingFutures
 
     data.cardinality
   }
@@ -93,14 +94,11 @@ object PrimesCounter {
   private def updateCache(primesCouple: PrimesCouple, n: Long): Long =
     cache.update(primesCouple.p1, n)
 
-  // TODO add synchronized blocks or use a concurrent map
   private def memoizedNumberOfPrimes(primesCouple: PrimesCouple): Long = {
-
     val memoizedValue =
-      // cache.map synchronized {
-      cache(primesCouple.p1)
-    // }
-
+      cache.map synchronized {
+        cache(primesCouple.p1)
+      }
     if (memoizedValue != cache.notYetMemoizedValue) memoizedValue
     else {
       hasUpdate = true
@@ -110,61 +108,55 @@ object PrimesCounter {
         numberOfOtherNonPrimes
       )
       println(s"$primesCouple -> $numberOfOtherNonPrimes -> $numberOfPrimes")
-      // cache.map synchronized {
-      updateCache(primesCouple, numberOfPrimes)
-      // }
+      cache.map synchronized {
+        updateCache(primesCouple, numberOfPrimes)
+      }
     }
   }
 
   /*
    * TODO grid computing
+   * TODO pagination when number of cache entries > Int.MaxValue
    */
   private def evaluate(middle: Middle): Long = {
+
     if (middle.isSingleton) 0
     else {
 
-      @inline
-      def submitTask(pc: PrimesCouple): Future[(Long, Long)] =
-        Future {
-          // Thread.sleep(2000)
-          (pc.p1, memoizedNumberOfPrimes(pc))
-        }
-
-      val chunkSize = AvailableProcessors * 3 
+      val pendingFutures = ListBuffer[Future[Long]]()
 
       @inline
-      def awaitOneResult(future: Future[(Long, Long)]): (Long, Long) = {
-        Await.ready(future, Duration.Inf).value.get.getOrElse((0L, 0L))
+      def submitTask(pc: PrimesCouple) = Future[Long] {
+        memoizedNumberOfPrimes(pc)
       }
 
-      val pendingFutures = ListBuffer[Future[(Long, Long)]]()
+      @inline
+      def waitForResultOfPendingFuture() = {
+        val combinedFuture = Future.sequence(pendingFutures.toSeq)
+        val result: Seq[Long] = Await.result(combinedFuture, Duration.Inf)
+        pendingFutures.clear()
+        result.sum
+      }
 
-      // TODO
+      val chunkSize = AvailableProcessors * 2
+      
+      var numberOfPrimes = 0L
       var primesCouple = PrimesCouple(middle.p1, findPrimeAfter(middle.p1))
-      var numberOfPrimes = memoizedNumberOfPrimes(primesCouple)
+      
+      pendingFutures += submitTask(primesCouple)
 
-      // println("=================================")
       while (primesCouple.p2 < middle.p2) {
-        primesCouple =
-          PrimesCouple(primesCouple.p2, findPrimeAfter(primesCouple.p2))
+        if (pendingFutures.size == chunkSize)
+          numberOfPrimes += waitForResultOfPendingFuture
+        primesCouple = PrimesCouple(
+          primesCouple.p2,
+          findPrimeAfter(primesCouple.p2)
+        )
         pendingFutures += submitTask(primesCouple)
-        // Thread.sleep(250)
-        if (pendingFutures.size == chunkSize) {
-          // println("=================================")
-          pendingFutures.foreach(x => {
-            val (p1, nop) = awaitOneResult(x)
-            numberOfPrimes += nop
-          })
-          pendingFutures.clear()
-          // println("=================================")
-        }
       }
       if (pendingFutures.nonEmpty)
-        pendingFutures.foreach(x => {
-          val (p1, nop) = awaitOneResult(x)
-          numberOfPrimes += nop
-        })
-      // println("=================================")
+        numberOfPrimes += waitForResultOfPendingFuture
+
       numberOfPrimes
     }
   }
@@ -266,14 +258,10 @@ object PrimesCounter {
 
   def main(args: Array[String]): Unit = {
 
-    /*
-     * TODO : pagination
-     * when number of cache entries > Int.MaxValue
-     */
     val inputCacheFileName = "data.bin"
     val outputCacheFileName = inputCacheFileName
 
-    cache.loadBinary(inputCacheFileName)
+    // cache.loadBinary(inputCacheFileName)
     // cache.clear()
 
     val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
@@ -282,10 +270,10 @@ object PrimesCounter {
     if (arg1 == -1) {
       val prime = primeFromRank(arg0)
       println(s"The prime number of rank ${arg0} is ${prime}")
-      val partitioning = Partitioning.of(Range(1, prime))
-      println(
-        s"Between ${1} and ${prime} : ${evaluate(partitioning)} primes"
-      )
+      // val partitioning = Partitioning.of(Range(1, prime))
+      // println(
+      //   s"Between ${1} and ${prime} : ${evaluate(partitioning)} primes"
+      // )
     } else {
       val (start, end) = (arg0, arg1)
       val partitioning = Partitioning.of(Range(start, end))
@@ -293,11 +281,11 @@ object PrimesCounter {
       println(
         s"Between ${start} and ${end} : ${rank} primes"
       )
-      val prime = primeFromRank(rank)
-      println(s"The prime number of rank ${rank} is ${prime}")
+      // val prime = primeFromRank(rank)
+      // println(s"The prime number of rank ${rank} is ${prime}")
     }
 
-    if (hasUpdate) cache.saveBinary(outputCacheFileName)
+    // if (hasUpdate) cache.saveBinary(outputCacheFileName)
 
   }
 
