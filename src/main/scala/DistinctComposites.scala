@@ -3,28 +3,31 @@ object DistinctComposites {
   sealed case class DistinctComposites(numberOfBits: Long) {
 
     assert(
-      numberOfBits <= Int.MaxValue * 64L,
+      numberOfBits <= Int.MaxValue * 32L,
       "\n" +
-        "number of bits greater than 137 438 953 408 " +
+        s"number of bits greater than ${(Int.MaxValue.toLong * 32)} " +
         "is currently not supported"
     )
 
-    private val numberOfWords =
-      (numberOfBits / 64 + (if (numberOfBits % 64 == 0) 0 else 1)).toInt
+    private val numberOfInts =
+      (numberOfBits / 32 + (if (numberOfBits % 32 == 0) 0 else 1)).toInt
 
-    private val bytes = new Array[Long](numberOfWords)
+    private val ints = new Array[Int](numberOfInts)
 
-    lazy val capacity: Long = 64 * numberOfWords
+    lazy val capacity: Long = 32 * numberOfInts
 
     @inline
-    def set(index: Long): Unit = bytes((index >> 6).toInt) |= (1L << (index & 0x3f))
-    
-    def cardinality(): Int = {
-      (0 until numberOfWords).foldLeft(0) { (sum, i) =>
-        sum + java.lang.Long.bitCount(bytes(i))
-      }
+    def set(index: Long): Unit = {
+      val intIndex = (index >> 5).toInt // index / 32
+      val bitIndex = (index & 0x1f).toInt // index % 32
+      ints(intIndex) |= (1 << bitIndex)
     }
 
+    def cardinality(): Int = {
+      (0 until numberOfInts).foldLeft(0) { (sum, i) =>
+        sum + java.lang.Integer.bitCount(ints(i))
+      }
+    }
   }
 
 }
