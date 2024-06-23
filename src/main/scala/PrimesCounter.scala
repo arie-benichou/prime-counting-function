@@ -9,7 +9,10 @@ object PrimesCounter {
 
   val AvailableProcessors = Runtime.getRuntime.availableProcessors
 
-  // TODO rename as MiddleSingularities (vs RangeSingularities)
+  // TODO : rename Singularities as MiddleSingularities
+  // TODO : rename RangeSingularities as SideSingularities
+  // TODO : RangeSingularities generation is PrimesCounter concern
+  //        not Partitioning concern
   val Singularities = Seq(
     (PrimesCouple(1, 2), 2L),
     (PrimesCouple(2, 3), 2L)
@@ -24,9 +27,6 @@ object PrimesCounter {
 
   private var hasUpdate = false
 
-  /*
-   * TODO split range when range.capacity > 137 438 953 408
-   */
   def countOtherNonPrimes(
       range: Range,
       maxPrimeDivisor: Long
@@ -34,8 +34,8 @@ object PrimesCounter {
     val data = new DistinctComposites(range.capacity)
     @inline
     def mark(onp: Long) = {
-      val index = (onp % range.start)
-      data synchronized { data.set(index) }
+      val index = (onp % range.start).toInt
+       data synchronized {data.set(index)}
     }
     case class Task(range: Range, prime: Long) extends Callable[Unit] {
       private val (start, end) = range.alignedEdgesOn(prime)
@@ -44,8 +44,7 @@ object PrimesCounter {
         if Primes2357.doesNotdivide(x)
       ) mark(x)
     }
-    val executorService = Executors.newFixedThreadPool(AvailableProcessors)
-    // Executors.newSingleThreadExecutor()
+    val executorService = Executors.newWorkStealingPool(AvailableProcessors)
     var primeDivisor = maxPrimeDivisor
     while (primeDivisor >= FifthPrime) {
       executorService.submit(new Task(range, primeDivisor))
@@ -56,9 +55,26 @@ object PrimesCounter {
     data.cardinality
   }
 
+  val ChunkSize = 15038100
+
   @inline
-  private def countOtherNonPrimes(primesCouple: PrimesCouple): Long =
-    countOtherNonPrimes(primesCouple.spanningRange, primesCouple.p1)
+  private def countOtherNonPrimes(pc: PrimesCouple): Long = {
+    // applying range segmentation for larger ranges
+    val capacity = pc.spanningRange.capacity
+    val q = capacity / ChunkSize
+    if (q != 0) print(Console.GREEN + "segmentation of " + Console.RESET)
+    val r = capacity % ChunkSize
+    var (start, end) = (pc.spanningRange.start, pc.spanningRange.end)
+    var n = 0L
+      for (i <- 1 to q.toInt) {
+      end = start + ChunkSize - 1
+      n += countOtherNonPrimes(Range(start, end), pc.p1)
+      start = end + 1
+    }
+    if (r != 0)
+      n += countOtherNonPrimes(Range(start, start + r - 1), pc.p1)
+    n
+  }
 
   @inline
   def calculateNumberOfPrimes(
@@ -207,6 +223,7 @@ object PrimesCounter {
   def main(args: Array[String]): Unit = {
 
     val inputCacheFileName = "data.bin"
+    // val inputCacheFileName = "data-to-validate.bin"
     val outputCacheFileName = inputCacheFileName
 
     cache.loadBinary(inputCacheFileName)
@@ -217,10 +234,10 @@ object PrimesCounter {
     if (arg1 == -1) {
       val prime = primeFromRank(arg0)
       println(s"The prime number of rank ${arg0} is ${prime}")
-      val partitioning = Partitioning.of(Range(1, prime))
-      println(
-        s"Between ${1} and ${prime} : ${evaluate(partitioning)} primes"
-      )
+      // val partitioning = Partitioning.of(Range(1, prime))
+      // println(
+      //   s"Between ${1} and ${prime} : ${evaluate(partitioning)} primes"
+      // )
     } else {
       val (start, end) = (arg0, arg1)
       val partitioning = Partitioning.of(Range(start, end))
@@ -228,11 +245,11 @@ object PrimesCounter {
       println(
         s"Between ${start} and ${end} : ${rank} primes"
       )
-      val prime = primeFromRank(rank)
-      println(s"The prime number of rank ${rank} is ${prime}")
+      // val prime = primeFromRank(rank)
+      // println(s"The prime number of rank ${rank} is ${prime}")
     }
 
-    if (hasUpdate) cache.saveBinary(outputCacheFileName)
+    // if (hasUpdate) cache.saveBinary(outputCacheFileName)
 
   }
 
