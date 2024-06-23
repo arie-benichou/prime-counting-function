@@ -13,3 +13,9 @@ src/main/scala/Migration.scala
 src/main/scala/P1P2P3.scala
 src/main/scala/Completion.scala
 data.bin.old
+src/main/scala/PrimesCounterWithJavaCompletionService.scala
+src/main/scala/PrimesCounterWithMappedMemoryDraft.scala
+src/main/scala/ScalaFutureExample.scala
+src/main/scala/Mobius.scala
+src/main/scala/ScalaFutureExample2.scala
+data.bin.new
