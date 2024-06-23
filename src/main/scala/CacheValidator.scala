@@ -73,9 +73,9 @@ object CacheValidator {
     println
 
   }
-
+ 
   def main(args: Array[String]): Unit = {
-    cache.loadBinary("data.bin")
+    cache.loadBinary("data-to-validate.bin")
     this(args(0).toLong, args(1).toLong)
   }
 
