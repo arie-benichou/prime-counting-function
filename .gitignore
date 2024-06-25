@@ -19,3 +19,5 @@ src/main/scala/ScalaFutureExample.scala
 src/main/scala/Mobius.scala
 src/main/scala/ScalaFutureExample2.scala
 data.bin.new
+*.txt
+project/plugins.sbt
