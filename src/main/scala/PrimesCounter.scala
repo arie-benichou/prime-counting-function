@@ -266,7 +266,7 @@ object PrimesCounter {
       // println(s"The prime number of rank ${rank} is ${prime}")
     }
 
-    // if (hasUpdate) cache.saveBinary(outputCacheFileName)
+    if (hasUpdate) cache.saveBinary(outputCacheFileName)
 
   }
 
