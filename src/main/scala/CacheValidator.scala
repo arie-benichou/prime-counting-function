@@ -16,7 +16,7 @@ object CacheValidator {
       if (p1 <= end) {
         val pc = PrimesCouple(p1, findPrimeAfter(p1))
         print(pc + " -> ")
-        val nonp = countOtherNonPrimes(pc.spanningRange, pc.p1)
+        val nonp = countOtherNonPrimes(pc)
         val np = calculateNumberOfPrimes(pc.spanningRange, nonp)
         val storedValue = cache(pc.p1)
         if (storedValue == np) {
@@ -71,7 +71,7 @@ object CacheValidator {
   }
 
   def main(args: Array[String]): Unit = {
-    cache.loadBinary("data-to-validate.bin")
+    cache.loadBinary("data.bin")
     println
     println("validating cache entries : ")
     println
