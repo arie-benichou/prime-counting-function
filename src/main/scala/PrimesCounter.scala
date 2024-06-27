@@ -261,17 +261,17 @@ object PrimesCounter {
       if (arg1 == -1) {
         val prime = PrimesCounter(arg0)
         println(s"The prime number of rank ${arg0} is ${prime}")
-        println(
-          s"Between 1 and ${prime} : ${PrimesCounter(1, prime)} primes"
-        )
+        // println(
+        //   s"Between 1 and ${prime} : ${PrimesCounter(1, prime)} primes"
+        // )
       } else {
         val (start, end) = (arg0, arg1)
         val rank = PrimesCounter(start, end)
         println(
           s"Between ${start} and ${end} : ${rank} primes"
         )
-        val prime = PrimesCounter(rank)
-        println(s"The prime number of rank ${rank} is ${prime}")
+        // val prime = PrimesCounter(rank)
+        // println(s"The prime number of rank ${rank} is ${prime}")
       }
 
       if (hasUpdate) cache.saveBinary("data.bin")
