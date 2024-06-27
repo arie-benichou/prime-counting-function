@@ -19,9 +19,9 @@ This implementation could be seen like a seed that could grow slowly slowly once
 
 It could also be used to create the core of a micro-service that would allow paralellism of internal computations on a cluster of several nodes.
 
-Obviously, this implementation allows the computation of phi(n), which is the number of primes from 1 to n : [1; n]
+Obviously, this implementation allows the computation of phi(n), which is the number of primes from 1 to n.
 
-This implementation allows also the computation of the number of prime until n starting from any natural integer i between 1 and n : [i; n]
+This implementation allows also the computation of the number of prime until n starting from any natural integer i between 1 and n.
 
 Finally, this implementation allows the computation of the nth prime, for any given natural integer != 0, which is the inverse function of phi(n).
 
