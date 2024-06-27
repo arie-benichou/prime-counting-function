@@ -1,6 +1,8 @@
 .bsp
 .metals
 .vscode
+.bloop
+metals.sbt
 target
 /.bloop/
 /TODO.txt

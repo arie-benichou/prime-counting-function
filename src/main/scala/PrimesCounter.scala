@@ -11,18 +11,31 @@ object PrimesCounter {
 
   val MaxRangeCapacitySegment = Int.MaxValue
 
-  // TODO : rename Singularities as MiddleSingularities
-  // TODO : rename RangeSingularities as SideSingularities
-  // TODO : RangeSingularities generation is PrimesCounter concern
-  //        not Partitioning concern
-  val Singularities = Seq(
+  private def generateSideSingularities() = {
+    val specialRanges = scala.collection.mutable.Set[Range]()
+    for (c <- (1 to 8).combinations(2)) {
+      val partition = Partitioning.of(c(0), c(1))
+      if (partition.isWorthy) {
+        if (!partition.left.isNull && !partition.left.isSingleton)
+          specialRanges += partition.left.unsignedRange
+        if (!partition.right.isNull && !partition.right.isSingleton)
+          specialRanges += partition.right.unsignedRange
+      } else specialRanges += partition.initialRange
+    }
+    def phi(r: Range) = getPrimesBetween(r.start, r.end).size
+    specialRanges.map(r => (r, phi(r))).filter(_._2 != 0).toSeq
+  }
+
+  val SideSingularities = Map[Range, Int](generateSideSingularities: _*)
+
+  val MiddleSingularities = Seq(
     (PrimesCouple(1, 2), 2L),
     (PrimesCouple(2, 3), 2L)
   )
 
   val cache = new CacheManager(
     Long.MinValue,
-    Singularities.map(s => (s._1.p1, s._2)): _*
+    MiddleSingularities.map(s => (s._1.p1, s._2)): _*
   )
 
   val FifthPrime = 11L
@@ -67,10 +80,7 @@ object PrimesCounter {
     val q = capacity / MaxRangeCapacitySegment
     if (q != 0) {
       print(Console.GREEN + "segmentation of " + Console.RESET)
-      if (!isMiddleRange)
-        println(
-          s"$range -> ${range.capacity}"
-        )
+      if (!isMiddleRange) println(s"$range -> ${range.capacity}")
     }
     val r = capacity % MaxRangeCapacitySegment
     var (start, end) = (range.start, range.end)
@@ -149,7 +159,7 @@ object PrimesCounter {
   }
 
   private def evaluate(range: Range, lastPrimeInvolved: Long): Long = {
-    if (RangeSingularities.isDefinedAt(range)) RangeSingularities(range)
+    if (SideSingularities.isDefinedAt(range)) SideSingularities(range)
     else if (range.isSingleton) if (isPrime(range.start)) 1 else 0
     else
       calculateNumberOfPrimes(
@@ -162,25 +172,23 @@ object PrimesCounter {
     if (side.isNull) 0
     else side.polarity * evaluate(side.unsignedRange, side.prime)
 
-  def evaluate(part: Partitions): Long = {
-    if (part.isWorthy)
-      evaluate(part.left) + evaluate(part.middle) + evaluate(part.right)
+  def evaluate(partition: Partition): Long = {
+    if (partition.isWorthy)
+      evaluate(partition.left) +
+        evaluate(partition.middle) +
+        evaluate(partition.right)
     else
-      evaluate(part.initialRange, part.middle.p2)
+      evaluate(partition.initialRange, partition.middle.p2)
   }
 
   def apply(start: Long, end: Long): Long = {
     require(start >= 0, s"$start is not a valid integer !")
     require(end >= 0, s"$end is not a valid integer !")
     require(start <= end, s"[$start ; $end] is not a valid range !")
-    evaluate(Partitioning.of(Range(start, end)))
+    evaluate(Partitioning.of(start, end))
   }
 
-  // TODO ! prime from rank with apply(x)
-  def apply(end: Long): Long = apply(1, end)
-
-  // TODO ? use Gauss Li(x) as a better estimate
-  def primeFromRank(rank: Long): Long = {
+  private def primeFromRank(rank: Long): Long = {
     require(rank > 0, s"$rank is not a valid integer !")
     require(rank != 0, "rank 0 is not defined.") // could return 1 ?
 
@@ -220,15 +228,18 @@ object PrimesCounter {
 
     val range = primesCouple.spanningRange
     val density = (1.0 * range.capacity) / numberOfPrimesInthisRange
+
     val diff = numberOfPrimesInthisRange - (numberOfPrimes - rank)
     val tmp = (1.0 * range.start + density * 1.0 * diff).toLong
     val estimate = if (tmp % 2 == 0) tmp - 1 else tmp
     val prime = if (isPrime(estimate)) estimate else findPrimeAfter(estimate)
-    val delta = diff - evaluate(Partitioning.of(Range(range.start, prime)))
+    val delta = diff - apply(range.start, prime)
     if (delta < 0) before(prime, delta)
     else if (delta > 0) after(prime, delta)
     else prime
   }
+
+  def apply(rank: Long): Long = primeFromRank(rank)
 
   // TODO R&D with this alternative
   def isPrimeAlternative1(n: Long) =
@@ -240,33 +251,37 @@ object PrimesCounter {
 
   def main(args: Array[String]): Unit = {
 
-    val inputCacheFileName = "data.bin"
-    val outputCacheFileName = inputCacheFileName
+    try {
 
-    cache.loadBinary(inputCacheFileName)
+      val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
+      val arg1 = if (args.isDefinedAt(1)) args(1).toLong else -1
 
-    val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
-    val arg1 = if (args.isDefinedAt(1)) args(1).toLong else -1
+      val inputCacheFileName = "data.bin"
+      val outputCacheFileName = inputCacheFileName
 
-    if (arg1 == -1) {
-      val prime = primeFromRank(arg0)
-      println(s"The prime number of rank ${arg0} is ${prime}")
-      // val partitioning = Partitioning.of(Range(1, prime))
-      // println(
-      //   s"Between ${1} and ${prime} : ${evaluate(partitioning)} primes"
-      // )
-    } else {
-      val (start, end) = (arg0, arg1)
-      val partitioning = Partitioning.of(Range(start, end))
-      val rank = evaluate(partitioning)
-      println(
-        s"Between ${start} and ${end} : ${rank} primes"
-      )
-      // val prime = primeFromRank(rank)
-      // println(s"The prime number of rank ${rank} is ${prime}")
+      cache.loadBinary(inputCacheFileName)
+
+      if (arg1 == -1) {
+        val prime = PrimesCounter(arg0)
+        println(s"The prime number of rank ${arg0} is ${prime}")
+        println(
+          s"Between 1 and ${prime} : ${PrimesCounter(1, prime)} primes"
+        )
+      } else {
+        val (start, end) = (arg0, arg1)
+        val rank = PrimesCounter(start, end)
+        println(
+          s"Between ${start} and ${end} : ${rank} primes"
+        )
+        val prime = PrimesCounter(rank)
+        println(s"The prime number of rank ${rank} is ${prime}")
+      }
+
+      if (hasUpdate) cache.saveBinary(outputCacheFileName)
+
+    } catch {
+      case e: Throwable => println(Console.RED + e + Console.RESET)
     }
-
-    if (hasUpdate) cache.saveBinary(outputCacheFileName)
 
   }
 

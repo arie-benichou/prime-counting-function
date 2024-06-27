@@ -76,10 +76,10 @@ object CacheValidator {
     println("validating cache entries : ")
     println
     val (rankStart, rankEnd) = (args(0).toLong, args(1).toLong)
-    val sqr1 = math.sqrt(PrimesCounter.primeFromRank(rankStart)).toLong
+    val sqr1 = math.sqrt(PrimesCounter(rankStart)).toLong
     val start = PrimesUtils.findPrimeBefore(sqr1)
     println(" - from  : " + start)
-    val sqr2 = math.sqrt(PrimesCounter.primeFromRank(rankEnd)).toLong
+    val sqr2 = math.sqrt(PrimesCounter(rankEnd)).toLong
     val end = PrimesUtils.findPrimeAfter(sqr2)
     println(" - until : " + end)
     println

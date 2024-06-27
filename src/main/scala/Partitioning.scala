@@ -1,5 +1,4 @@
-import scala.collection.mutable
-import PrimesUtils.{findPrimeBefore, findPrimeAfter, getPrimesBetween}
+import PrimesUtils._
 
 case object Partitioning {
 
@@ -36,14 +35,14 @@ case object Partitioning {
     override def toString: String = if (isNull) "{}" else range.toString
   }
 
-  // TODO use composition with Range, like as Side ?
+  // TODO ? use composition with Range, alike Side
   class Middle(val p1: Long, val p2: Long) extends Range((p1 * p1), (p2 * p2)) {
     override def toString: String =
       if (isSingleton) s"{${this.start}}"
       else s"[${p1} x ${p1} ; ${p2} x ${p2}]"
   }
 
-  sealed case class PartitioningState(
+  private sealed case class PartitionState(
       initialRange: Range,
       left: Side = NullSide,
       middle: Middle = NullMiddle,
@@ -55,7 +54,7 @@ case object Partitioning {
     override def toString: String = s"${left} # ${middle} # ${right}"
   }
 
-  def splitEdge(edge: Long): (Side, Side) = {
+  private def splitEdge(edge: Long): (Side, Side) = {
     val squareRoot = math.sqrt(edge).toLong
     val primeBefore =
       if (squareRoot == 1) 1
@@ -69,7 +68,7 @@ case object Partitioning {
     )
   }
 
-  def pass1(state: PartitioningState): PartitioningState = {
+  private def pass1(state: PartitionState): PartitionState = {
     val (upperBound, lowerBound) = splitEdge(state.initialRange.start)
     if (upperBound.capacity <= lowerBound.capacity)
       state
@@ -85,7 +84,7 @@ case object Partitioning {
         )
   }
 
-  def pass2(state: PartitioningState) = {
+  private def pass2(state: PartitionState) = {
     val (upperBound, lowerBound) = splitEdge(state.initialRange.end)
     if (upperBound.capacity <= lowerBound.capacity)
       state
@@ -97,19 +96,19 @@ case object Partitioning {
         .setMiddle(new Middle(state.middle.p1, lowerBound.prime))
   }
 
-  def pass3(state: PartitioningState) = {
+  private def pass3(state: PartitionState) = {
     if (state.left.isSingleton)
       state.setLeft(NullSide)
     else state
   }
 
-  def pass4(state: PartitioningState) = {
+  private def pass4(state: PartitionState) = {
     if (state.right.isSingleton)
       state.setRight(NullSide)
     else state
   }
 
-  def pass5(state: PartitioningState): PartitioningState = {
+  private def pass5(state: PartitionState): PartitionState = {
     if (state.left.isNull) state
     else {
       if (state.left.isNegative)
@@ -119,7 +118,7 @@ case object Partitioning {
     }
   }
 
-  def pass6(state: PartitioningState): PartitioningState = {
+  private def pass6(state: PartitionState): PartitionState = {
     if (state.right.isNull) state
     else {
       if (state.right.isNegative)
@@ -129,7 +128,7 @@ case object Partitioning {
     }
   }
 
-  def format(partitions: Partitions) = {
+  private def format(partitions: Partition) = {
     var data = ""
     if (partitions.isWorthy) {
       val left = partitions.left
@@ -149,16 +148,16 @@ case object Partitioning {
     data
   }
 
-  sealed case class Partitions(initialRange: Range) {
+  sealed case class Partition(initialRange: Range) {
 
-    lazy val state =
+    private lazy val state =
       pass6(
         pass5(
           pass4(
             pass3(
               pass2(
                 pass1(
-                  new PartitioningState(this.initialRange)
+                  new PartitionState(this.initialRange)
                 )
               )
             )
@@ -176,8 +175,6 @@ case object Partitioning {
         left.capacity + right.capacity
       ) >= 0
 
-    lazy val isApplicable = hasMiddlePart && isWorthy
-
     lazy val traces =
       s"range  : $initialRange \n" +
         s" ->    : ${this.state} \n" +
@@ -188,50 +185,25 @@ case object Partitioning {
     override lazy val toString: String = format(this)
   }
 
-  def of(range: Range) = {
-    if (range.start > range.end)
-      throw new Exception(
-        s"$range is not a valid range : ${range.start} > ${range.end}"
-      )
-    if (range.start < 1)
-      throw new Exception(
-        s"$range is not a valid range : ${range.start} < 1"
-      )
-    new Partitions(range) // TODO rename into Partitioning
+  def of(range: Range): Partition = {
+    require(
+      range.start <= range.end,
+      s"$range is not a valid range : ${range.start} > ${range.end}"
+    )
+    require(
+      range.start >= 1,
+      s"$range is not a valid range : ${range.start} < 1"
+    )
+    new Partition(range)
   }
 
-  def apply(range: Range): Partitions = Partitioning.of(range)
-
-  // TODO PrimeCounter concern
-  val setOfRanges = mutable.Set[Range]()
-
-  // TODO PrimeCounter concern
-  for (c <- (1 to 8).combinations(2)) {
-    val (start, end) = (c(0), c(1))
-    val partitioning = Partitioning.of(Range(start, end))
-    if (partitioning.isWorthy) {
-      if (!partitioning.left.isNull && !partitioning.left.isSingleton)
-        setOfRanges.addOne(partitioning.left.unsignedRange)
-      if (!partitioning.right.isNull && !partitioning.right.isSingleton)
-        setOfRanges.addOne(partitioning.right.unsignedRange)
-    } else setOfRanges.addOne(partitioning.initialRange)
-  }
-
-  // TODO PrimeCounter concern
-  val RangeSingularities = Map[Range, Int](
-    (setOfRanges
-      .map(x => {
-        (x, getPrimesBetween(x.start, x.end).size) // TODO count
-      }))
-      .filter(_._2 != 0)
-      .toSeq: _*
-  )
+  def of(start: Long, end: Long): Partition = Partitioning.of(Range(start, end))
 
   def main(args: Array[String]): Unit = {
     val (start, end) = (args(0).toLong, args(1).toLong)
-    val partitioning = Partitioning.of(Range(start, end))
-    println(partitioning.traces)
-    println(partitioning)
+    val partition = Partitioning.of(start, end)
+    println(partition.traces)
+    println(partition)
   }
 
 }
