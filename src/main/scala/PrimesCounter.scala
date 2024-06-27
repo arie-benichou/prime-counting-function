@@ -256,10 +256,7 @@ object PrimesCounter {
       val arg0 = if (args.isDefinedAt(0)) args(0).toLong else 350
       val arg1 = if (args.isDefinedAt(1)) args(1).toLong else -1
 
-      val inputCacheFileName = "data.bin"
-      val outputCacheFileName = inputCacheFileName
-
-      cache.loadBinary(inputCacheFileName)
+      cache.loadBinary("data.bin")
 
       if (arg1 == -1) {
         val prime = PrimesCounter(arg0)
@@ -277,7 +274,7 @@ object PrimesCounter {
         println(s"The prime number of rank ${rank} is ${prime}")
       }
 
-      if (hasUpdate) cache.saveBinary(outputCacheFileName)
+      if (hasUpdate) cache.saveBinary("data.bin")
 
     } catch {
       case e: Throwable => println(Console.RED + e + Console.RESET)
