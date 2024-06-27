@@ -7,7 +7,7 @@ case class CacheManager(
     initialData: (Long, Long)*
 ) extends Iterable[Long] {
 
-  // private 
+  // private
   val map: mutable.SortedMap[Long, Long] =
     mutable
       .SortedMap[Long, Long](initialData: _*)
@@ -24,11 +24,12 @@ case class CacheManager(
    * TODO : pagination
    * when n > Int.MaxValue
    */
-  def loadBinary(filename: String): Long = {
+  def loadBinary(filename: String, verbose: Boolean = true): Long = {
     if (os.isFile(os.pwd / filename)) {
-      println(
-        s"${Console.GREEN}Loading cache from ${filename}${Console.RESET}"
-      )
+      if (verbose)
+        println(
+          s"${Console.GREEN}Loading cache from ${filename}${Console.RESET}"
+        )
       val binary = os.read.bytes(os.pwd / filename)
       val cachedResults = readBinary[mutable.SortedMap[Long, Long]](binary)
       val size = cachedResults.size
@@ -37,9 +38,10 @@ case class CacheManager(
         i += 1
         map.addOne(cachedResult)
       }
-      println(
-        s"${Console.GREEN}$i primes loaded from cache${Console.RESET}"
-      )
+      if (verbose)
+        println(
+          s"${Console.GREEN}$i primes loaded from cache${Console.RESET}"
+        )
       i
     } else 0
   }
