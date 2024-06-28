@@ -25,6 +25,7 @@ This implementation allows also the computation of the number of prime until n s
 
 Finally, this implementation allows the computation of the nth prime, for any given natural integer != 0, which is the inverse function of phi(n).
 
+One of the motivations for this project was to create a proper tool in order to check [two new primes conjectures](https://github.com/arie-benichou/prime-counting-function/blob/main/src/main/scala/NewPrimesConjecture.scala) that could look quite similar to the "Fermat's Little Theorem" and "Fermat's Last Theorem".
 
 ## Installation
 
